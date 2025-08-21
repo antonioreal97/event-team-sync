@@ -10,7 +10,7 @@ import { Event, TeamAllocation, EquipmentAllocation, Equipment, User } from '@/t
 import { getEventById, getEventTeamAllocations, updateTeamAllocation } from '@/services/eventService';
 import { getEventEquipmentAllocations } from '@/services/equipmentService';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
 import { equipments as mockEquipments } from '@/services/mockData';
 
 const EventDetail = () => {
