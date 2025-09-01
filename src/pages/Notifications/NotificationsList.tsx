@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserNotifications, markAllAsRead, markAsRead } from '@/services/notificationService';
+import { getNotificationsByUserId, markAllNotificationsAsRead, markNotificationAsRead } from '@/services/notificationService';
 import { Notification } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,7 +19,7 @@ const NotificationsList = () => {
       if (!user) return;
       
       try {
-        const userNotifications = await getUserNotifications(user.id);
+        const userNotifications = await getNotificationsByUserId(user.id);
         setNotifications(userNotifications);
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
@@ -35,7 +35,7 @@ const NotificationsList = () => {
     if (!user) return;
     
     try {
-      await markAllAsRead(user.id);
+      await markAllNotificationsAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
@@ -43,7 +43,7 @@ const NotificationsList = () => {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
-    await markAsRead(notification.id);
+          await markNotificationAsRead(notification.id);
     
     // Update the notification in our state
     setNotifications(prev => 
@@ -57,7 +57,9 @@ const NotificationsList = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Criar data no meio-dia para evitar problemas de timezone
+    const date = new Date(dateString + 'T12:00:00');
+    
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit', 
       month: '2-digit',

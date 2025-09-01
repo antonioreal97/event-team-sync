@@ -67,12 +67,24 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				// Cores específicas da Sound4U
+				sound4u: {
+					neon: '#11CF81', // Verde neon principal
+					neonDark: '#0FA165', // Verde neon escuro
+					neonDarker: '#0F7149', // Verde neon mais escuro
+					neonDarkest: '#125035', // Verde neon mais escuro
+					black: '#090A09', // Preto profundo
+					grayDark: '#0F0F0F', // Preto suave
+					grayMedium: '#5B5B5A', // Cinza médio
+					grayLight: '#A0A1A0', // Cinza claro
+					grayLighter: '#DCDCDC', // Cinza mais claro
+				},
 				event: {
-					DEFAULT: '#1E3A8A',
-					accent: '#0EA5E9',
-					pending: '#FCD34D',
-					confirmed: '#10B981',
-					rejected: '#EF4444',
+					DEFAULT: '#11CF81', // Verde neon para eventos confirmados
+					accent: '#0EA5E9', // Azul para destaque
+					pending: '#FCD34D', // Amarelo para pendentes
+					confirmed: '#11CF81', // Verde neon para confirmados
+					rejected: '#EF4444', // Vermelho para rejeitados
 				}
 			},
 			borderRadius: {
@@ -107,11 +119,36 @@ export default {
 						transform: 'translateY(0)'
 					}
 				},
+				'neon-pulse': {
+					'0%, 100%': {
+						boxShadow: '0 0 5px rgba(17, 207, 129, 0.5)'
+					},
+					'50%': {
+						boxShadow: '0 0 20px rgba(17, 207, 129, 0.8)'
+					}
+				},
+				'glow-float': {
+					'0%, 100%': {
+						transform: 'translateY(0px)',
+						boxShadow: '0 0 10px rgba(17, 207, 129, 0.3)'
+					},
+					'50%': {
+						transform: 'translateY(-5px)',
+						boxShadow: '0 0 20px rgba(17, 207, 129, 0.6)'
+					}
+				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'fade-in': 'fade-in 0.3s ease-out'
+				'fade-in': 'fade-in 0.3s ease-out',
+				'neon-pulse': 'neon-pulse 2s ease-in-out infinite',
+				'glow-float': 'glow-float 3s ease-in-out infinite'
+			},
+			boxShadow: {
+				'neon': '0 0 10px rgba(17, 207, 129, 0.5)',
+				'neon-lg': '0 0 20px rgba(17, 207, 129, 0.8)',
+				'neon-xl': '0 0 30px rgba(17, 207, 129, 1)',
 			}
 		}
 	},

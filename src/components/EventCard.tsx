@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Event } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EventCardProps {
   event: Event;
@@ -12,20 +13,56 @@ interface EventCardProps {
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
   const navigate = useNavigate();
-  
+  const { isGestor } = useAuth();
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    try {
+      if (!dateString) return 'Data não informada';
+      
+      // Criar data no meio-dia para evitar problemas de timezone
+      const date = new Date(dateString + 'T12:00:00');
+      
+      if (isNaN(date.getTime())) {
+        console.warn('Data inválida detectada:', dateString);
+        return 'Data inválida';
+      }
+      
+      const formatted = date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        weekday: 'long'
+      });
+      
+      return formatted;
+    } catch (error) {
+      console.error('Erro ao formatar data:', error, 'String original:', dateString);
+      return 'Data inválida';
+    }
   };
   
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    try {
+      if (!dateString) return 'Horário não informado';
+      
+      // Criar data no meio-dia para evitar problemas de timezone
+      const date = new Date(dateString + 'T12:00:00');
+      
+      if (isNaN(date.getTime())) {
+        console.warn('Horário inválido detectado:', dateString);
+        return 'Horário inválido';
+      }
+      
+      const formatted = date.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      
+      return formatted;
+    } catch (error) {
+      console.error('Erro ao formatar horário:', error, 'String original:', dateString);
+      return 'Horário inválido';
+    }
   };
 
   const getStatusBadge = () => {
@@ -43,8 +80,25 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     }
   };
 
-  const isUpcoming = new Date(event.startDate) > new Date();
-  const isToday = new Date(event.startDate).toDateString() === new Date().toDateString();
+  const isUpcoming = () => {
+    try {
+      const startDate = new Date(event.startDate);
+      if (isNaN(startDate.getTime())) return false;
+      return startDate > new Date();
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const isToday = () => {
+    try {
+      const startDate = new Date(event.startDate);
+      if (isNaN(startDate.getTime())) return false;
+      return startDate.toDateString() === new Date().toDateString();
+    } catch (error) {
+      return false;
+    }
+  };
 
   return (
     <Card className="card-hover">
@@ -60,17 +114,30 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             <p className="text-sm text-gray-500">Local</p>
             <p className="font-medium">{event.location}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-500">Data</p>
+              <p className="text-sm text-gray-500">Data de Início</p>
               <p className="font-medium">{formatDate(event.startDate)}</p>
+              {event.dailySchedule && event.dailySchedule.length > 0 && (
+                <p className="text-sm text-gray-500">
+                  {event.dailySchedule[0].startTime} - {event.dailySchedule[0].endTime}
+                </p>
+              )}
             </div>
+            
             <div>
-              <p className="text-sm text-gray-500">Horário</p>
-              <p className="font-medium">{formatTime(event.startDate)} - {formatTime(event.endDate)}</p>
+              <p className="text-sm text-gray-500">Data de Fim</p>
+              <p className="font-medium">{formatDate(event.endDate)}</p>
+              {event.dailySchedule && event.dailySchedule.length > 0 && (
+                <p className="text-sm text-gray-500">
+                  {event.dailySchedule[event.dailySchedule.length - 1].startTime} - {event.dailySchedule[event.dailySchedule.length - 1].endTime}
+                </p>
+              )}
             </div>
           </div>
-          {isToday && (
+          
+          {isToday() && (
             <div className="mt-2">
               <Badge className="bg-event-accent text-white hover:bg-event-accent">Hoje</Badge>
             </div>
@@ -78,13 +145,24 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         </div>
       </CardContent>
       <CardFooter className="pt-0">
-        <Button 
-          variant="default" 
-          className="w-full"
-          onClick={() => navigate(`/events/${event.id}`)}
-        >
-          Ver Detalhes
-        </Button>
+        <div className="flex space-x-2 w-full">
+          <Button 
+            variant="outline" 
+            className="flex-1"
+            onClick={() => navigate(`/events/${event.id}`)}
+          >
+            Ver Detalhes
+          </Button>
+          {isGestor && (
+            <Button 
+              variant="default" 
+              className="flex-1"
+              onClick={() => navigate(`/events/${event.id}/edit`)}
+            >
+              Editar
+            </Button>
+          )}
+        </div>
       </CardFooter>
     </Card>
   );

@@ -1,0 +1,200 @@
+// Constantes da aplicação
+export const APP_CONFIG = {
+  NAME: 'Equipe S4U',
+  VERSION: '1.0.0',
+  DESCRIPTION: 'Sistema de gestão de equipes para eventos audiovisuais',
+};
+
+// Configurações de paginação
+export const PAGINATION = {
+  DEFAULT_PAGE_SIZE: 10,
+  MAX_PAGE_SIZE: 100,
+  PAGE_SIZE_OPTIONS: [10, 25, 50, 100],
+};
+
+// Configurações de eventos
+export const EVENT_CONFIG = {
+  MIN_TITLE_LENGTH: 3,
+  MAX_TITLE_LENGTH: 100,
+  MIN_DESCRIPTION_LENGTH: 10,
+  MAX_DESCRIPTION_LENGTH: 1000,
+  MAX_LOCATION_LENGTH: 200,
+  MAX_NOTES_LENGTH: 500,
+  MIN_BUDGET: 0,
+  MAX_BUDGET: 1000000,
+};
+
+// Configurações de usuários
+export const USER_CONFIG = {
+  MIN_NAME_LENGTH: 2,
+  MAX_NAME_LENGTH: 100,
+  MIN_PASSWORD_LENGTH: 6,
+  MAX_PASSWORD_LENGTH: 128,
+  MIN_BIO_LENGTH: 10,
+  MAX_BIO_LENGTH: 1000,
+  MAX_PHONE_LENGTH: 20,
+  MAX_ADDRESS_LENGTH: 200,
+  MAX_CITY_LENGTH: 100,
+  MAX_STATE_LENGTH: 100,
+  MAX_CPF_LENGTH: 14,
+  MAX_PORTFOLIO_LENGTH: 500,
+  MAX_LINKEDIN_LENGTH: 100,
+  MAX_INSTAGRAM_LENGTH: 100,
+  MAX_WEBSITE_LENGTH: 200,
+  MAX_PREVIOUS_EXPERIENCE_LENGTH: 1000,
+};
+
+// Configurações de equipamentos
+export const EQUIPMENT_CONFIG = {
+  MIN_NAME_LENGTH: 3,
+  MAX_NAME_LENGTH: 100,
+  MIN_DESCRIPTION_LENGTH: 10,
+  MAX_DESCRIPTION_LENGTH: 500,
+  MIN_QUANTITY: 1,
+  MAX_QUANTITY: 1000,
+  MIN_PURCHASE_PRICE: 0,
+  MAX_PURCHASE_PRICE: 1000000,
+  MAX_SERIAL_NUMBER_LENGTH: 100,
+  MAX_BRAND_LENGTH: 100,
+  MAX_MODEL_LENGTH: 100,
+  MAX_CATEGORY_LENGTH: 100,
+  MAX_CONDITION_LENGTH: 50,
+  MAX_LOCATION_LENGTH: 200,
+  MAX_MAINTENANCE_NOTES_LENGTH: 500,
+};
+
+// Configurações de notificações
+export const NOTIFICATION_CONFIG = {
+  MIN_TITLE_LENGTH: 3,
+  MAX_TITLE_LENGTH: 100,
+  MIN_MESSAGE_LENGTH: 10,
+  MAX_MESSAGE_LENGTH: 1000,
+  MAX_PRIORITY_LENGTH: 20,
+  MAX_TYPE_LENGTH: 50,
+};
+
+// Configurações de pagamento
+export const PAYMENT_CONFIG = {
+  MIN_AMOUNT: 0.01,
+  MAX_AMOUNT: 1000000,
+  MAX_PAYMENT_METHOD_LENGTH: 50,
+  MAX_TRANSACTION_ID_LENGTH: 100,
+  MAX_NOTES_LENGTH: 500,
+};
+
+// Configurações de presença
+export const ATTENDANCE_CONFIG = {
+  MAX_NOTES_LENGTH: 500,
+  MAX_STATUS_LENGTH: 20,
+  MAX_CHECK_IN_TIME_LENGTH: 10,
+  MAX_CHECK_OUT_TIME_LENGTH: 10,
+};
+
+// Configurações de equipes
+export const TEAM_CONFIG = {
+  MAX_TEAM_NAME_LENGTH: 100,
+  MAX_TEAM_DESCRIPTION_LENGTH: 500,
+  MAX_TEAM_NOTES_LENGTH: 500,
+  MAX_TEAM_COLOR_LENGTH: 7,
+};
+
+// Configurações de convites
+export const INVITE_CONFIG = {
+  MIN_EMAIL_LENGTH: 5,
+  MAX_EMAIL_LENGTH: 100,
+  MAX_ROLE_LENGTH: 100,
+  MAX_NOTES_LENGTH: 500,
+  INVITE_EXPIRY_DAYS: 7,
+};
+
+// Configurações de busca
+export const SEARCH_CONFIG = {
+  MIN_QUERY_LENGTH: 2,
+  MAX_QUERY_LENGTH: 100,
+  SEARCH_DELAY_MS: 300,
+  MAX_SEARCH_RESULTS: 50,
+};
+
+// Configurações de validação
+export const VALIDATION_CONFIG = {
+  EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  PHONE_REGEX: /^[\+]?[1-9][\d]{0,15}$/,
+  CPF_REGEX: /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
+  URL_REGEX: /^https?:\/\/.+/,
+  DATE_REGEX: /^\d{4}-\d{2}-\d{2}$/,
+  TIME_REGEX: /^\d{2}:\d{2}$/,
+};
+
+// Configurações de UI
+export const UI_CONFIG = {
+  TOAST_DURATION: 5000,
+  LOADING_DELAY: 300,
+  ANIMATION_DURATION: 200,
+  DEBOUNCE_DELAY: 300,
+  INFINITE_SCROLL_THRESHOLD: 100,
+  MODAL_BACKDROP_CLOSE: true,
+  CONFIRM_DIALOG_TIMEOUT: 10000,
+};
+
+// Configurações de segurança
+export const SECURITY_CONFIG = {
+  PASSWORD_MIN_LENGTH: 8,
+  PASSWORD_REQUIRE_UPPERCASE: true,
+  PASSWORD_REQUIRE_LOWERCASE: true,
+  PASSWORD_REQUIRE_NUMBERS: true,
+  PASSWORD_REQUIRE_SPECIAL_CHARS: false,
+  SESSION_TIMEOUT_MINUTES: 60,
+  MAX_LOGIN_ATTEMPTS: 5,
+  LOCKOUT_DURATION_MINUTES: 15,
+};
+
+// Configurações de arquivos
+export const FILE_CONFIG = {
+  MAX_FILE_SIZE_MB: 10,
+  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  ALLOWED_DOCUMENT_TYPES: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  MAX_FILE_NAME_LENGTH: 255,
+  UPLOAD_CHUNK_SIZE: 1024 * 1024, // 1MB
+};
+
+// Configurações de relatórios
+export const REPORT_CONFIG = {
+  MAX_DATE_RANGE_DAYS: 365,
+  DEFAULT_DATE_RANGE_DAYS: 30,
+  MAX_EXPORT_RECORDS: 10000,
+  EXPORT_FORMATS: ['pdf', 'excel', 'csv'],
+  REPORT_CACHE_DURATION_MINUTES: 15,
+};
+
+// Configurações de auditoria
+export const AUDIT_CONFIG = {
+  LOG_USER_ACTIONS: true,
+  LOG_SYSTEM_EVENTS: true,
+  LOG_ERRORS: true,
+  LOG_PERFORMANCE: true,
+  MAX_LOG_ENTRIES: 100000,
+  LOG_RETENTION_DAYS: 90,
+};
+
+// Configurações de backup
+export const BACKUP_CONFIG = {
+  AUTO_BACKUP_ENABLED: true,
+  BACKUP_FREQUENCY_HOURS: 24,
+  BACKUP_RETENTION_DAYS: 30,
+  BACKUP_COMPRESSION: true,
+  BACKUP_ENCRYPTION: false,
+};
+
+// Configurações de monitoramento
+export const MONITORING_CONFIG = {
+  HEALTH_CHECK_INTERVAL_SECONDS: 30,
+  PERFORMANCE_MONITORING: true,
+  ERROR_TRACKING: true,
+  UPTIME_MONITORING: true,
+  RESOURCE_USAGE_MONITORING: true,
+};
+
+
+
+
+

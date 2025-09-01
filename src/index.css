@@ -7,83 +7,93 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Sound4U Color Palette */
+    --background: 0 0% 3%; /* #090A09 - Preto profundo */
+    --foreground: 0 0% 100%; /* #FFFFFF - Branco puro */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 5%; /* #0F0F0F - Preto suave */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 5%; /* #0F0F0F - Preto suave */
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Verde neon principal da Sound4U */
+    --primary: 162 84% 44%; /* #11CF81 - Verde neon */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Tons de cinza para elementos secundários */
+    --secondary: 0 0% 35%; /* #5B5B5A - Cinza médio */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 15%; /* #262626 - Cinza escuro */
+    --muted-foreground: 0 0% 63%; /* #A0A1A0 - Cinza claro */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 162 84% 44%; /* #11CF81 - Verde neon */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 0 0% 20%; /* #333333 - Cinza borda */
+    --input: 0 0% 20%; /* #333333 - Cinza input */
+    --ring: 162 84% 44%; /* #11CF81 - Verde neon */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 220 70% 15%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
+    /* Sidebar com tema escuro */
+    --sidebar-background: 0 0% 3%; /* #090A09 - Preto profundo */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 162 84% 44%; /* #11CF81 - Verde neon */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 15%; /* #262626 - Cinza escuro */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%; /* #333333 - Cinza borda */
+    --sidebar-ring: 162 84% 44%; /* #11CF81 - Verde neon */
+
+    /* Cores específicas para eventos */
+    --event-pending: 48 96% 53%; /* #FCD34D - Amarelo */
+    --event-confirmed: 162 84% 44%; /* #11CF81 - Verde neon */
+    --event-rejected: 0 84% 60%; /* #EF4444 - Vermelho */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Modo escuro (já é o padrão agora) */
+    --background: 0 0% 3%; /* #090A09 - Preto profundo */
+    --foreground: 0 0% 100%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 5%; /* #0F0F0F - Preto suave */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 5%; /* #0F0F0F - Preto suave */
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 162 84% 44%; /* #11CF81 - Verde neon */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 15%; /* #262626 - Cinza escuro */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 15%; /* #262626 - Cinza escuro */
+    --muted-foreground: 0 0% 63%; /* #A0A1A0 - Cinza claro */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 162 84% 44%; /* #11CF81 - Verde neon */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 0 0% 20%; /* #333333 - Cinza borda */
+    --input: 0 0% 20%; /* #333333 - Cinza input */
+    --ring: 162 84% 44%; /* #11CF81 - Verde neon */
 
-    --sidebar-background: 217.2 32.6% 17.5%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 3%; /* #090A09 - Preto profundo */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 162 84% 44%; /* #11CF81 - Verde neon */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 15%; /* #262626 - Cinza escuro */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%; /* #333333 - Cinza borda */
+    --sidebar-ring: 162 84% 44%; /* #11CF81 - Verde neon */
   }
 }
 
@@ -94,6 +104,8 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Adicionar gradiente sutil ao fundo para efeito tecnológico */
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -113,6 +125,47 @@
   }
 }
 
+/* Efeitos especiais para o tema Sound4U */
 .card-hover {
-  @apply transition-all duration-200 hover:shadow-md hover:-translate-y-1;
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-2;
+  box-shadow: 0 0 20px rgba(17, 207, 129, 0.1);
+}
+
+.card-hover:hover {
+  box-shadow: 0 0 30px rgba(17, 207, 129, 0.2);
+}
+
+/* Efeito de brilho neon */
+.neon-glow {
+  box-shadow: 0 0 10px rgba(17, 207, 129, 0.5);
+}
+
+.neon-glow:hover {
+  box-shadow: 0 0 20px rgba(17, 207, 129, 0.8);
+}
+
+/* Gradiente de fundo para cards */
+.card-gradient {
+  background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Efeito de borda brilhante */
+.border-glow {
+  border: 1px solid hsl(var(--primary));
+  box-shadow: 0 0 10px rgba(17, 207, 129, 0.3);
+}
+
+/* Animação de pulso para elementos ativos */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(17, 207, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(17, 207, 129, 0.8);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }

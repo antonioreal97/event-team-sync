@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: frela_postgres
+    environment:
+      POSTGRES_DB: frela_db
+      POSTGRES_USER: frela_user
+      POSTGRES_PASSWORD: frela_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - frela_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: frela_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@frela.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - frela_network
+
+volumes:
+  postgres_data:
+
+networks:
+  frela_network:
+    driver: bridge

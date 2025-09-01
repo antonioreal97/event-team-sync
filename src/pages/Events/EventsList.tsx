@@ -24,7 +24,7 @@ import { Event } from '@/types';
 
 const EventsList = () => {
   const navigate = useNavigate();
-  const { user, isProducer } = useAuth();
+  const { user, isGestor } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,7 @@ const EventsList = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
           <h1>Eventos</h1>
-          {isProducer && (
+          {isGestor && (
             <Button onClick={() => navigate('/events/new')}>
               Novo Evento
             </Button>
@@ -128,7 +128,7 @@ const EventsList = () => {
               <Card>
                 <CardContent className="pt-6 pb-6 text-center">
                   <p className="text-gray-500">Nenhum evento encontrado</p>
-                  {isProducer && (
+                  {isGestor && (
                     <Button 
                       variant="outline" 
                       className="mt-4"
