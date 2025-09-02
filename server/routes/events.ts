@@ -115,6 +115,9 @@ router.get('/user/:userId', asyncHandler(async (req: Request, res: Response) => 
   const currentUserId = req.user?.id;
   const currentUserRole = req.user?.role;
 
+  console.log('🔍 Buscando eventos para usuário:', userId);
+  console.log('👤 Usuário atual:', currentUserId, 'Role:', currentUserRole);
+
   // Verificar permissões
   if (currentUserRole !== 'gestor' && currentUserId !== userId) {
     throw createError('Acesso negado', 403);
@@ -129,6 +132,18 @@ router.get('/user/:userId', asyncHandler(async (req: Request, res: Response) => 
     WHERE ta.user_id = $1
     ORDER BY e.start_date DESC
   `, [userId]);
+
+  console.log('📊 Eventos encontrados para usuário:', userId);
+  console.log('📋 Resultado da query:', result.rows.map(row => ({
+    id: row.id,
+    title: row.title,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    start_date_type: typeof row.start_date,
+    end_date_type: typeof row.end_date,
+    start_date_value: row.start_date,
+    end_date_value: row.end_date
+  })));
 
   res.json({
     events: result.rows

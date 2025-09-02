@@ -1,0 +1,20 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar arquivos de dependências
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Instalar TODAS as dependências (incluindo devDependencies para tsx)
+RUN npm ci
+
+# Copiar código fonte do servidor
+COPY server/ ./server/
+COPY database/ ./database/
+
+# Expor porta
+EXPOSE 3001
+
+# Comando para iniciar o servidor
+CMD ["npm", "run", "server"]

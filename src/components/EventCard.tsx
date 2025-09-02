@@ -15,15 +15,31 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
   const navigate = useNavigate();
   const { isGestor } = useAuth();
 
-  const formatDate = (dateString: string) => {
+  // Log temporário para debug
+  console.log('🎯 EVENTCARD RECEBEU:', {
+    id: event.id,
+    title: event.title,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    startDateType: typeof event.startDate,
+    endDateType: typeof event.endDate
+  });
+
+  const formatDate = (dateString: string | null | undefined) => {
+    console.log('📅 formatDate chamada com:', dateString, 'Tipo:', typeof dateString);
+    
     try {
-      if (!dateString) return 'Data não informada';
+      if (!dateString) {
+        console.log('❌ Data vazia, retornando "Data não informada"');
+        return 'Data não informada';
+      }
       
       // Criar data no meio-dia para evitar problemas de timezone
       const date = new Date(dateString + 'T12:00:00');
+      console.log('📅 Data criada:', date, 'É válida?', !isNaN(date.getTime()));
       
       if (isNaN(date.getTime())) {
-        console.warn('Data inválida detectada:', dateString);
+        console.warn('❌ Data inválida detectada:', dateString);
         return 'Data inválida';
       }
       
@@ -34,9 +50,10 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         weekday: 'long'
       });
       
+      console.log('✅ Data formatada:', formatted);
       return formatted;
     } catch (error) {
-      console.error('Erro ao formatar data:', error, 'String original:', dateString);
+      console.error('❌ Erro ao formatar data:', error, 'String original:', dateString);
       return 'Data inválida';
     }
   };

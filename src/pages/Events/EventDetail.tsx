@@ -291,31 +291,147 @@ const EventDetail = () => {
                   
                   {/* Equipes */}
                   <div className="grid grid-cols-1 gap-4">
-                    {/* Equipe A */}
-                    <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-amber-100">Equipe A</span>
-                        <div className="text-right">
-                          <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamA || 0}/dia</div>
-                          <div className="text-amber-100 font-bold text-lg">
-                            R$ {(event.dailyRateTeamA || 0) * (event.totalDays || 1)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                                      {/* Lógica para mostrar preços baseada no tipo de usuário */}
+                  {(() => {
+                    console.log('🔍 Debug - Iniciando lógica de preços');
+                    console.log('🔍 Debug - isGestor:', isGestor);
+                    console.log('🔍 Debug - user:', user);
+                    console.log('🔍 Debug - event.teamAllocations:', event.teamAllocations);
                     
-                    {/* Equipe B */}
-                    <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-amber-100">Equipe B</span>
-                        <div className="text-right">
-                          <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamB || 0}/dia</div>
-                          <div className="text-amber-100 font-bold text-lg">
-                            R$ {(event.dailyRateTeamB || 0) * (event.totalDays || 1)}
+                    // Se for gestor, mostrar ambas as equipes
+                    if (isGestor) {
+                      console.log('🔍 Debug - Usuário é gestor, mostrando ambas equipes');
+                      return (
+                        <>
+                          {/* Equipe A */}
+                          <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-amber-100">Equipe A</span>
+                              <div className="text-right">
+                                <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamA || 0}/dia</div>
+                                <div className="text-amber-100 font-bold text-lg">
+                                  R$ {(event.dailyRateTeamA || 0) * (event.totalDays || 1)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Equipe B */}
+                          <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-amber-100">Equipe B</span>
+                              <div className="text-right">
+                                <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamB || 0}/dia</div>
+                                <div className="text-amber-100 font-bold text-lg">
+                                  R$ {(event.dailyRateTeamB || 0) * (event.totalDays || 1)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    }
+                    
+                    // Se for freelancer, mostrar apenas a equipe onde está alocado
+                    if (user && user.role === 'freelancer' && event.teamAllocations && event.teamAllocations.length > 0) {
+                      console.log('🔍 Debug - ENTRANDO na lógica de freelancer');
+                      console.log('🔍 Debug - user.role:', user.role);
+                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations.length);
+                      
+                      const userAllocation = event.teamAllocations.find(
+                        (allocation: any) => allocation.userId === user.id
+                      );
+                      
+                      console.log('🔍 Debug - User Allocation encontrada:', userAllocation);
+                      console.log('🔍 Debug - Team Type do perfil:', (userAllocation as any)?.team_type);
+                      console.log('🔍 Debug - User ID:', user.id);
+                      console.log('🔍 Debug - Todas as alocações:', event.teamAllocations);
+                      console.log('🔍 Debug - User profile teamType:', user.teamType);
+                      
+                      // Primeiro tentar usar o team_type da alocação
+                      let userTeamType = (userAllocation as any)?.team_type;
+                      console.log('🔍 Debug - userTeamType da alocação:', userTeamType);
+                      
+                      // Se não encontrar na alocação, usar o teamType do perfil do usuário
+                      if (!userTeamType && user.teamType) {
+                        userTeamType = user.teamType;
+                        console.log('🔍 Debug - Usando teamType do perfil do usuário:', userTeamType);
+                      }
+                      
+                      console.log('🔍 Debug - userTeamType final:', userTeamType);
+                      
+                      if (userTeamType) {
+                        // Usar o team_type encontrado
+                        const isTeamA = userTeamType === 'equipe_a';
+                        const teamType = isTeamA ? 'A' : 'B';
+                        const dailyRate = isTeamA ? event.dailyRateTeamA : event.dailyRateTeamB;
+                        const totalPayment = dailyRate * (event.totalDays || 1);
+                        
+                        console.log('🔍 Debug - Team Type determinado:', teamType);
+                        console.log('🔍 Debug - Daily Rate usado:', dailyRate);
+                        console.log('🔍 Debug - RETORNANDO equipe específica do freelancer');
+                        
+                        return (
+                          <div className={`bg-gradient-to-r ${isTeamA ? 'from-amber-700/80 to-amber-600/80' : 'from-amber-600/80 to-amber-500/80'} p-4 rounded-lg border border-amber-400/40`}>
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-amber-100">Equipe {teamType} - Sua Equipe</span>
+                              <div className="text-right">
+                                <div className="text-amber-200 text-sm">R$ {dailyRate || 0}/dia</div>
+                                <div className="text-amber-100 font-bold text-lg">
+                                  R$ {totalPayment}
+                                </div>
+                                <div className="text-amber-300 text-xs">Seu pagamento total</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        console.log('🔍 Debug - PROBLEMA: team_type não encontrado em nenhum lugar');
+                        console.log('🔍 Debug - userAllocation existe:', !!userAllocation);
+                        console.log('🔍 Debug - team_type da alocação:', !!(userAllocation as any)?.team_type);
+                        console.log('🔍 Debug - user.teamType existe:', !!user.teamType);
+                        console.log('🔍 Debug - VAI PARA FALLBACK (mostrar ambas equipes)');
+                      }
+                    } else {
+                      console.log('🔍 Debug - NÃO entrou na lógica de freelancer');
+                      console.log('🔍 Debug - user existe:', !!user);
+                      console.log('🔍 Debug - user.role:', user?.role);
+                      console.log('🔍 Debug - event.teamAllocations existe:', !!event.teamAllocations);
+                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations?.length);
+                    }
+                    
+                    // Fallback: mostrar ambas as equipes se não conseguir determinar
+                    console.log('🔍 Debug - Usando fallback: mostrando ambas equipes');
+                    return (
+                      <>
+                        {/* Equipe A */}
+                        <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-amber-100">Equipe A</span>
+                            <div className="text-right">
+                              <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamA || 0}/dia</div>
+                              <div className="text-amber-100 font-bold text-lg">
+                                R$ {(event.dailyRateTeamA || 0) * (event.totalDays || 1)}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
+                        
+                        {/* Equipe B */}
+                        <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-amber-100">Equipe B</span>
+                            <div className="text-right">
+                              <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamB || 0}/dia</div>
+                              <div className="text-amber-100 font-bold text-lg">
+                                R$ {(event.dailyRateTeamB || 0) * (event.totalDays || 1)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                   </div>
                   
                   {/* Nota Multi-dia */}
@@ -375,31 +491,33 @@ const EventDetail = () => {
                 </CardContent>
               </Card>
 
-              {/* Informações de Prioridade */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Award className="h-5 w-5" />
-                    <span>Prioridade de Equipe</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Equipe Prioritária</p>
-                    <Badge variant="outline" className="mt-1">
-                      {event.teamPriority === 'equipe_a' ? 'Equipe A - Prioridade Máxima' : 
-                       event.teamPriority === 'equipe_b' ? 'Equipe B - Suporte' : 'Ambas as Equipes'}
-                    </Badge>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Backup Equipe B</p>
-                    <Badge variant={event.allowTeamB ? 'default' : 'secondary'} className="mt-1">
-                      {event.allowTeamB ? 'Permitido' : 'Não permitido'}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Informações de Prioridade - APENAS PARA GESTORES */}
+              {isGestor && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Award className="h-5 w-5" />
+                      <span>Prioridade de Equipe</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Equipe Prioritária</p>
+                      <Badge variant="outline" className="mt-1">
+                        {event.teamPriority === 'equipe_a' ? 'Equipe A - Prioridade Máxima' : 
+                         event.teamPriority === 'equipe_b' ? 'Equipe B - Suporte' : 'Ambas as Equipes'}
+                      </Badge>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Backup Equipe B</p>
+                      <Badge variant={event.allowTeamB ? 'default' : 'secondary'} className="mt-1">
+                        {event.allowTeamB ? 'Permitido' : 'Não permitido'}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Observações */}

@@ -271,7 +271,8 @@ export const getUserEvents = async (user: User): Promise<Event[]> => {
       }
 
       const data = await response.json();
-      return data.events || [];
+      // Transforma os dados do backend para o formato do frontend
+      return (data.events || []).map(transformEventFromBackend);
     }
   } catch (error) {
     console.error('Erro ao buscar eventos do usuário:', error);

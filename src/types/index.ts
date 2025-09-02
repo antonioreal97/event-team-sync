@@ -143,6 +143,10 @@ export interface Event {
   specialInstructions?: string;
   setupRequirements?: string;
   technicalSpecifications?: string;
+  
+  // Alocações de equipe
+  teamAllocations?: TeamAllocation[];
+  equipmentAllocations?: any[];
 }
 
 // Interface para freelancers verem apenas informações relevantes para sua equipe
