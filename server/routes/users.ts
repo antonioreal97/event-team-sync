@@ -425,8 +425,14 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
     previousExperience,
     certifications,
     equipment,
-    languages
+    languages,
+    teamType // Capturar se for enviado
   } = req.body;
+
+  // Freelancers não podem alterar o tipo de equipe
+  if (req.user?.role === 'freelancer' && teamType !== undefined) {
+    throw createError('Freelancers não podem alterar seu tipo de equipe', 403);
+  }
 
   // Atualizar dados básicos
   if (name) {
@@ -443,6 +449,18 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   );
 
   if (profileResult.rows.length > 0) {
+    // Campos que freelancers podem alterar
+    const updateFields = [
+      phone, address, city, state, bio, portfolio, linkedin,
+      instagram, website, previousExperience, certifications,
+      equipment, languages
+    ];
+
+    // Se for gestor, permitir alteração de teamType
+    if (req.user?.role === 'gestor' && teamType !== undefined) {
+      updateFields.push(teamType);
+    }
+
     await pool.query(`
       UPDATE freelancer_profiles SET
         phone = COALESCE($1, phone),
@@ -458,13 +476,10 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
         certifications = COALESCE($11, certifications),
         equipment = COALESCE($12, equipment),
         languages = COALESCE($13, languages),
+        ${req.user?.role === 'gestor' && teamType !== undefined ? 'team_type = COALESCE($14, team_type),' : ''}
         updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $14
-    `, [
-      phone, address, city, state, bio, portfolio, linkedin,
-      instagram, website, previousExperience, certifications,
-      equipment, languages, id
-    ]);
+      WHERE user_id = ${req.user?.role === 'gestor' && teamType !== undefined ? '$15' : '$14'}
+    `, updateFields);
   }
 
   res.json({

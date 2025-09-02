@@ -350,6 +350,153 @@ router.delete('/:id', requireGestor, asyncHandler(async (req: Request, res: Resp
   });
 }));
 
+// Confirmar interesse em evento (apenas freelancers)
+router.post('/:id/confirm-interest', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+
+  // Verificar se usuário é freelancer
+  if (userRole !== 'freelancer') {
+    throw createError('Apenas freelancers podem confirmar interesse em eventos', 403);
+  }
+
+  // Verificar se evento existe
+  const eventResult = await pool.query(
+    'SELECT id, title FROM events WHERE id = $1',
+    [id]
+  );
+
+  if (eventResult.rows.length === 0) {
+    throw createError('Evento não encontrado', 404);
+  }
+
+  // Verificar se usuário já confirmou interesse
+  const existingInterest = await pool.query(
+    'SELECT id FROM event_interest_confirmations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  if (existingInterest.rows.length > 0) {
+    throw createError('Usuário já confirmou interesse neste evento', 400);
+  }
+
+  // Verificar se usuário está alocado no evento
+  const allocationResult = await pool.query(
+    'SELECT id, status FROM team_allocations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  // Se o usuário já está confirmado na alocação, não permitir confirmação de interesse
+  if (allocationResult.rows.length > 0 && allocationResult.rows[0].status === 'confirmed') {
+    throw createError('Usuário já está confirmado para este evento. Não é necessário confirmar interesse.', 400);
+  }
+
+  // Se o usuário não está alocado, permitir confirmação de interesse
+  // Se estiver alocado mas não confirmado, também permitir confirmação de interesse
+
+  // Criar confirmação de interesse
+  const confirmationResult = await pool.query(`
+    INSERT INTO event_interest_confirmations (
+      event_id, user_id, status, created_at, updated_at
+    ) VALUES ($1, $2, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    RETURNING *
+  `, [id, userId]);
+
+  const confirmation = confirmationResult.rows[0];
+
+  // Criar notificação para o administrador
+  const adminUsers = await pool.query(
+    "SELECT id FROM users WHERE role = 'gestor'"
+  );
+
+  // Buscar nome do usuário freelancer
+  const userResult = await pool.query(
+    'SELECT name FROM users WHERE id = $1',
+    [userId]
+  );
+
+  const userName = userResult.rows[0]?.name || 'Freelancer';
+
+  for (const admin of adminUsers.rows) {
+    await pool.query(`
+      INSERT INTO notifications (
+        user_id, title, message, type, related_event_id, priority, action_required, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+    `, [
+      admin.id,
+      'Novo Interesse Confirmado',
+      `O freelancer ${userName} confirmou interesse no evento "${eventResult.rows[0].title}"`,
+      'allocation',
+      id,
+      'medium',
+      true
+    ]);
+  }
+
+  res.status(201).json({
+    message: 'Interesse confirmado com sucesso',
+    confirmation
+  });
+}));
+
+// Verificar status de interesse em evento
+router.get('/:id/interest-status', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+
+  // Verificar se usuário está autenticado
+  if (!userId) {
+    throw createError('Usuário não autenticado', 401);
+  }
+
+  // Buscar confirmação de interesse
+  const result = await pool.query(
+    'SELECT * FROM event_interest_confirmations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw createError('Confirmação de interesse não encontrada', 404);
+  }
+
+  res.json({
+    confirmation: result.rows[0]
+  });
+}));
+
+// Cancelar interesse em evento
+router.delete('/:id/cancel-interest', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+
+  // Verificar se usuário é freelancer
+  if (userRole !== 'freelancer') {
+    throw createError('Apenas freelancers podem cancelar interesse em eventos', 403);
+  }
+
+  // Verificar se confirmação de interesse existe
+  const existingInterest = await pool.query(
+    'SELECT id FROM event_interest_confirmations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  if (existingInterest.rows.length === 0) {
+    throw createError('Confirmação de interesse não encontrada', 404);
+  }
+
+  // Deletar confirmação de interesse
+  await pool.query(
+    'DELETE FROM event_interest_confirmations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  res.json({
+    message: 'Interesse cancelado com sucesso'
+  });
+}));
+
 export { router as eventRoutes };
 
 

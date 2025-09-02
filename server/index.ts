@@ -9,6 +9,7 @@ import { teamRoutes } from './routes/teams';
 import { equipmentRoutes } from './routes/equipment';
 import { notificationRoutes } from './routes/notifications';
 import { inviteRoutes } from './routes/invites';
+import { eventInterestRoutes } from './routes/eventInterest';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticateToken } from './middleware/auth';
 
@@ -47,6 +48,7 @@ app.use('/api/teams', authenticateToken, teamRoutes);
 app.use('/api/equipment', authenticateToken, equipmentRoutes);
 app.use('/api/notifications', authenticateToken, notificationRoutes);
 app.use('/api/invites', authenticateToken, inviteRoutes);
+app.use('/api/event-interest', authenticateToken, eventInterestRoutes);
 
 // Rota de health check
 app.get('/api/health', (req, res) => {

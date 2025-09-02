@@ -293,3 +293,53 @@ export const getTeamWorkload = async (teamType: TeamType): Promise<{
     };
   }
 };
+
+export const getActiveFreelancersByTeam = async (): Promise<{
+  equipe_a: { total: number; active: number; users: User[] };
+  equipe_b: { total: number; active: number; users: User[] };
+  sem_equipe: { total: number; active: number; users: User[] };
+}> => {
+  try {
+    const response = await fetch(buildApiUrl('/teams/active-freelancers'), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar freelancers ativos: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data || {
+      equipe_a: { total: 0, active: 0, users: [] },
+      equipe_b: { total: 0, active: 0, users: [] },
+      sem_equipe: { total: 0, active: 0, users: [] }
+    };
+  } catch (error) {
+    console.error('Erro ao buscar freelancers ativos:', error);
+    return {
+      equipe_a: { total: 0, active: 0, users: [] },
+      equipe_b: { total: 0, active: 0, users: [] },
+      sem_equipe: { total: 0, active: 0, users: [] }
+    };
+  }
+};
+
+export const isEventTeamFullyConfirmed = async (eventId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(buildApiUrl(`/teams/event/${eventId}/confirmation-status`), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao verificar status da equipe: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.isFullyConfirmed || false;
+  } catch (error) {
+    console.error('Erro ao verificar status da equipe:', error);
+    return false;
+  }
+};

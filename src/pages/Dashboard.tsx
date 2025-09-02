@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event, TeamAllocation, User } from '@/types';
 import { getAllEvents as getEvents, getTeamAllocationsForEvent } from '@/services/eventService';
-import { getTeamStatistics } from '@/services/teamService';
+import { getTeamStatistics, getActiveFreelancersByTeam, isEventTeamFullyConfirmed } from '@/services/teamService';
 import { filterEventForUser, getEventDisplayInfo, getEventDescription } from '@/services/eventVisibilityService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -23,6 +23,8 @@ const Dashboard = () => {
   const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
   const [teamAllocations, setTeamAllocations] = useState<TeamAllocation[]>([]);
   const [teamStats, setTeamStats] = useState<any>(null);
+  const [activeFreelancers, setActiveFreelancers] = useState<any>(null);
+  const [teamConfirmationStatus, setTeamConfirmationStatus] = useState<{[key: string]: boolean}>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,26 +40,56 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Iniciando busca de dados do dashboard...');
       
-      const [eventsData, teamStatsData] = await Promise.all([
+      const [eventsData, teamStatsData, activeFreelancersData] = await Promise.all([
         getEvents(),
-        isGestor ? getTeamStatistics() : null
+        isGestor ? getTeamStatistics() : null,
+        isGestor ? getActiveFreelancersByTeam() : null
       ]);
+      
+      console.log('📊 Dados recebidos:', {
+        events: eventsData?.length || 0,
+        teamStats: teamStatsData,
+        activeFreelancers: activeFreelancersData
+      });
       
       setEvents(eventsData);
       setTeamStats(teamStatsData);
+      setActiveFreelancers(activeFreelancersData);
       
       // Buscar alocações apenas se for gestor
       if (isGestor) {
+        console.log('👨‍💼 Buscando alocações de equipe...');
         const allocations = await Promise.all(
           eventsData.map(event => getTeamAllocationsForEvent(event.id))
         );
         setTeamAllocations(allocations.flat());
+        
+        // Verificar status de confirmação de cada evento
+        console.log('✅ Verificando status de confirmação dos eventos...');
+        const confirmationStatuses = await Promise.all(
+          eventsData.map(async (event) => {
+            try {
+              const isConfirmed = await isEventTeamFullyConfirmed(event.id);
+              console.log(`Evento ${event.title}: ${isConfirmed ? 'Confirmado' : 'Pendente'}`);
+              return { [event.id]: isConfirmed };
+            } catch (error) {
+              console.error(`Erro ao verificar evento ${event.title}:`, error);
+              return { [event.id]: false };
+            }
+          })
+        );
+        
+        const statusMap = confirmationStatuses.reduce((acc, status) => ({ ...acc, ...status }), {});
+        setTeamConfirmationStatus(statusMap);
+        console.log('📋 Status de confirmação:', statusMap);
       }
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error('❌ Erro ao buscar dados do dashboard:', error);
     } finally {
       setLoading(false);
+      console.log('🏁 Busca de dados concluída');
     }
   };
 
@@ -184,10 +216,30 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-primary mb-1">{teamStats?.equipeA || 0}</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    {activeFreelancers?.equipe_a?.total || teamStats?.equipeA || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {teamStats?.equipeAActive || 0} ativos
+                    {activeFreelancers?.equipe_a?.active || teamStats?.equipeAActive || 0} ativos
                   </p>
+                  {activeFreelancers?.equipe_a?.users && activeFreelancers.equipe_a.users.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium text-primary">Freelancers Ativos:</p>
+                      {activeFreelancers.equipe_a.users.slice(0, 3).map((freelancer: User) => (
+                        <div key={freelancer.id} className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {freelancer.name}
+                          </span>
+                        </div>
+                      ))}
+                      {activeFreelancers.equipe_a.users.length > 3 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{activeFreelancers.equipe_a.users.length - 3} mais
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -199,10 +251,30 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-primary mb-1">{teamStats?.equipeB || 0}</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    {activeFreelancers?.equipe_b?.total || teamStats?.equipeB || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {teamStats?.equipeBActive || 0} ativos
+                    {activeFreelancers?.equipe_b?.active || teamStats?.equipeBActive || 0} ativos
                   </p>
+                  {activeFreelancers?.equipe_b?.users && activeFreelancers.equipe_b.users.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium text-primary">Freelancers Ativos:</p>
+                      {activeFreelancers.equipe_b.users.slice(0, 3).map((freelancer: User) => (
+                        <div key={freelancer.id} className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {freelancer.name}
+                          </span>
+                        </div>
+                      ))}
+                      {activeFreelancers.equipe_b.users.length > 3 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{activeFreelancers.equipe_b.users.length - 3} mais
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -438,12 +510,38 @@ const Dashboard = () => {
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-lg font-bold text-primary">
-                          R$ {allocation.dailyRate}/dia
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {allocation.totalDays} dia{allocation.totalDays > 1 ? 's' : ''}
-                        </div>
+                        {(() => {
+                          const isFullyConfirmed = teamConfirmationStatus[allocation.eventId];
+                          return (
+                            <>
+                              <div className="flex items-center justify-end space-x-2 mb-2">
+                                <Badge 
+                                  variant={isFullyConfirmed ? "default" : "secondary"}
+                                  className="text-xs"
+                                >
+                                  {isFullyConfirmed ? 'Equipe Confirmada' : 'Pendente Confirmação'}
+                                </Badge>
+                              </div>
+                              {isFullyConfirmed ? (
+                                <div className="text-lg font-bold text-primary">
+                                  R$ {allocation.dailyRate}/dia
+                                </div>
+                              ) : (
+                                <div className="text-lg font-bold text-muted-foreground">
+                                  Custo: R$ {allocation.dailyRate}/dia
+                                </div>
+                              )}
+                              <div className="text-sm text-muted-foreground">
+                                {allocation.totalDays} dia{allocation.totalDays > 1 ? 's' : ''}
+                              </div>
+                              {!isFullyConfirmed && (
+                                <div className="text-xs text-amber-500 mt-1">
+                                  Custo visível após confirmação da equipe
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );

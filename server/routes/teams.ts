@@ -218,6 +218,113 @@ router.post('/payment/:allocationId/confirm', requireGestor, asyncHandler(async 
   });
 }));
 
+// Buscar freelancers ativos por equipe
+router.get('/active-freelancers', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  try {
+    // Buscar usuários freelancers com suas equipes
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        u.updated_at,
+        fp.team_type,
+        fp.experience_level,
+        fp.phone,
+        fp.city,
+        fp.state
+      FROM users u
+      LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
+      WHERE u.role = 'freelancer' AND fp.team_type IS NOT NULL
+      ORDER BY fp.team_type, u.name
+    `);
+
+    // Organizar por equipe
+    const teams = {
+      equipe_a: { total: 0, active: 0, users: [] },
+      equipe_b: { total: 0, active: 0, users: [] },
+      sem_equipe: { total: 0, active: 0, users: [] }
+    };
+
+    result.rows.forEach(user => {
+      const teamType = user.team_type || 'sem_equipe';
+      if (teams[teamType]) {
+        teams[teamType].total++;
+        teams[teamType].active++; // Considerar todos como ativos por enquanto
+        teams[teamType].users.push({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          teamType: user.team_type,
+          experienceLevel: user.experience_level,
+          phone: user.phone,
+          city: user.city,
+          state: user.state
+        });
+      }
+    });
+
+    res.json(teams);
+  } catch (error) {
+    console.error('Erro ao buscar freelancers ativos:', error);
+    throw createError('Erro interno ao buscar freelancers ativos', 500);
+  }
+}));
+
+// Verificar se toda a equipe de um evento está confirmada
+router.get('/event/:eventId/confirmation-status', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const { eventId } = req.params;
+
+  try {
+    // Verificar se a tabela event_interest_confirmations existe
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'event_interest_confirmations'
+      );
+    `);
+
+    if (!tableExists.rows[0].exists) {
+      // Se a tabela não existe, considerar como não confirmado
+      return res.json({ isFullyConfirmed: false });
+    }
+
+    // Buscar todas as alocações para o evento
+    const allocationsResult = await pool.query(`
+      SELECT user_id FROM team_allocations 
+      WHERE event_id = $1
+    `, [eventId]);
+
+    if (allocationsResult.rows.length === 0) {
+      return res.json({ isFullyConfirmed: false });
+    }
+
+    const allocatedUserIds = allocationsResult.rows.map(row => row.user_id);
+
+    // Verificar se todos os usuários alocados confirmaram interesse
+    const confirmationsResult = await pool.query(`
+      SELECT COUNT(*) as confirmed_count
+      FROM event_interest_confirmations 
+      WHERE event_id = $1 AND user_id = ANY($2) AND status = 'confirmed'
+    `, [eventId, allocatedUserIds]);
+
+    const confirmedCount = parseInt(confirmationsResult.rows[0].confirmed_count);
+    const isFullyConfirmed = confirmedCount === allocatedUserIds.length;
+
+    res.json({ 
+      isFullyConfirmed,
+      totalAllocated: allocatedUserIds.length,
+      confirmedCount
+    });
+  } catch (error) {
+    console.error('Erro ao verificar status da equipe:', error);
+    throw createError('Erro interno ao verificar status da equipe', 500);
+  }
+}));
+
 export { router as teamRoutes };
 
 

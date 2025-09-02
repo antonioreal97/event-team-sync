@@ -164,6 +164,23 @@ export const updateUserStatus = async (id: string, isActive: boolean): Promise<v
   }
 };
 
+export const deleteUser = async (id: string): Promise<void> => {
+  try {
+    const response = await fetch(buildApiUrl('/users/:id', { id }), {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Erro ao excluir usuário');
+    }
+  } catch (error) {
+    console.error('Erro ao excluir usuário:', error);
+    throw error;
+  }
+};
+
 export const getUserAvailability = async (userId: string, startDate: Date, endDate: Date): Promise<{
   isAvailable: boolean;
   conflictingEvents: string[];

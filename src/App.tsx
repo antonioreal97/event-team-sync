@@ -17,6 +17,7 @@ import NotificationsList from "./pages/Notifications/NotificationsList";
 import TeamScheduling from "./pages/TeamManagement/TeamScheduling";
 import PaymentManagement from "./pages/TeamManagement/PaymentManagement";
 import TeamManagement from "./pages/TeamManagement/TeamManagement";
+import EventInterestManagement from "./pages/TeamManagement/EventInterestManagement";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -68,6 +69,7 @@ const AppRoutes = () => {
       <Route path="/team-management" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
       <Route path="/team-scheduling" element={<ProtectedRoute><TeamScheduling /></ProtectedRoute>} />
       <Route path="/payment-management" element={<ProtectedRoute><PaymentManagement /></ProtectedRoute>} />
+      <Route path="/event-interest-management" element={<ProtectedRoute><EventInterestManagement /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       

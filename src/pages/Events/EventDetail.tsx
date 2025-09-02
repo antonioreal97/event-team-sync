@@ -10,6 +10,7 @@ import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
 import { getEventById } from '@/services/eventService';
+import { confirmEventInterest, checkEventInterestStatus, cancelEventInterest, EventInterestConfirmation } from '@/services/eventInterestService';
 import { 
   Calendar, 
   MapPin, 
@@ -32,10 +33,13 @@ const EventDetail = () => {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [interestStatus, setInterestStatus] = useState<EventInterestConfirmation | null>(null);
+  const [interestLoading, setInterestLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchEventData();
+      fetchInterestStatus();
     }
   }, [id]);
 
@@ -66,6 +70,82 @@ const EventDetail = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInterestStatus = async () => {
+    if (!id || !user || user.role !== 'freelancer') return;
+    
+    try {
+      const status = await checkEventInterestStatus(id);
+      setInterestStatus(status);
+    } catch (error) {
+      console.error('Failed to fetch interest status:', error);
+    }
+  };
+
+  const handleConfirmInterest = async () => {
+    if (!id || !user) return;
+    
+    try {
+      setInterestLoading(true);
+      const confirmation = await confirmEventInterest(id);
+      setInterestStatus(confirmation);
+      
+      toast({
+        title: 'Interesse Confirmado',
+        description: 'Seu interesse no evento foi confirmado com sucesso! O administrador será notificado.',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Failed to confirm interest:', error);
+      
+      // Extrair mensagem de erro mais específica
+      let errorMessage = 'Falha ao confirmar interesse no evento';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Tentar extrair mensagem de erro da resposta da API
+        const errorObj = error as any;
+        if (errorObj.message) {
+          errorMessage = errorObj.message;
+        } else if (errorObj.error) {
+          errorMessage = errorObj.error;
+        }
+      }
+      
+      toast({
+        title: 'Erro',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setInterestLoading(false);
+    }
+  };
+
+  const handleCancelInterest = async () => {
+    if (!id || !user) return;
+    
+    try {
+      setInterestLoading(true);
+      await cancelEventInterest(id);
+      setInterestStatus(null);
+      
+      toast({
+        title: 'Interesse Cancelado',
+        description: 'Seu interesse no evento foi cancelado.',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Failed to cancel interest:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao cancelar interesse no evento',
+        variant: 'destructive',
+      });
+    } finally {
+      setInterestLoading(false);
     }
   };
 
@@ -490,6 +570,201 @@ const EventDetail = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Confirmação de Interesse - APENAS PARA FREELANCERS */}
+              {user && user.role === 'freelancer' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Confirmação de Interesse</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                                        {/* Verificar status de confirmação de interesse do freelancer */}
+                    {(() => {
+                      // PRIORIDADE 1: Verificar se o usuário confirmou interesse
+                      if (interestStatus) {
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center space-x-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">
+                                Interesse confirmado em {new Date(interestStatus.confirmedAt || interestStatus.createdAt).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                            
+                            {interestStatus.status === 'pending' && (
+                              <div className="space-y-3">
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                  <p className="text-sm text-amber-700 text-center">
+                                    ⏳ Aguardando aprovação do administrador
+                                  </p>
+                                  <p className="text-xs text-amber-600 text-center mt-1">
+                                    Seu interesse foi registrado e será analisado
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleCancelInterest}
+                                  disabled={interestLoading}
+                                  className="w-full"
+                                >
+                                  {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {interestStatus.status === 'confirmed' && (
+                              <div className="space-y-3">
+                                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                  <p className="text-sm text-green-700 text-center">
+                                    ✅ Seu interesse foi aprovado pelo administrador
+                                  </p>
+                                  <p className="text-xs text-green-600 text-center mt-1">
+                                    Aguardando alocação na equipe do evento
+                                  </p>
+                                </div>
+                                
+                                {/* Mostrar informações de alocação se existir */}
+                                {(() => {
+                                  const userAllocation = event.teamAllocations?.find(
+                                    allocation => allocation.userId === user.id
+                                  );
+                                  
+                                  if (userAllocation) {
+                                    return (
+                                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p className="text-sm font-medium text-blue-800 mb-2">
+                                          📋 Informações da Alocação:
+                                        </p>
+                                        <div className="space-y-1 text-xs text-blue-700">
+                                          <div className="flex justify-between">
+                                            <span>Função:</span>
+                                            <span className="font-medium">{userAllocation.assignedRole}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span>Status da Alocação:</span>
+                                            <Badge 
+                                              variant={userAllocation.status === 'confirmed' ? 'default' : 'secondary'}
+                                              className="text-xs"
+                                            >
+                                              {userAllocation.status === 'confirmed' ? 'Confirmado' : 
+                                               userAllocation.status === 'pending' ? 'Pendente' : 'Cancelado'}
+                                            </Badge>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span>Taxa por dia:</span>
+                                            <span className="font-medium">R$ {userAllocation.dailyRate}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            )}
+                            
+                            {interestStatus.status === 'rejected' && (
+                              <div className="space-y-3">
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                  <p className="text-sm text-red-700 text-center">
+                                    ❌ Seu interesse foi rejeitado pelo administrador
+                                  </p>
+                                  <p className="text-xs text-red-600 text-center mt-1">
+                                    Entre em contato para mais informações
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleCancelInterest}
+                                  disabled={interestLoading}
+                                  className="w-full"
+                                >
+                                  {interestLoading ? 'Cancelando...' : 'Remover Rejeição'}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      
+                      // PRIORIDADE 2: Se não confirmou interesse, verificar se está alocado
+                      const userAllocation = event.teamAllocations?.find(
+                        allocation => allocation.userId === user.id
+                      );
+                      
+                      if (userAllocation) {
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center space-x-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">
+                                Você está alocado para este evento
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Função:</span>
+                                <span className="font-medium">{userAllocation.assignedRole}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Status:</span>
+                                <Badge 
+                                  variant={userAllocation.status === 'confirmed' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {userAllocation.status === 'confirmed' ? 'Confirmado' : 
+                                   userAllocation.status === 'pending' ? 'Pendente' : 'Cancelado'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Taxa por dia:</span>
+                                <span className="font-medium">R$ {userAllocation.dailyRate}</span>
+                              </div>
+                            </div>
+                            
+                            {userAllocation.status === 'confirmed' ? (
+                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p className="text-sm text-green-700 text-center">
+                                  ✅ Sua participação foi confirmada pelo administrador
+                                </p>
+                                <p className="text-xs text-green-600 text-center mt-1">
+                                  Nota: Você foi alocado diretamente sem confirmação prévia de interesse
+                                </p>
+                              </div>
+                            ) : userAllocation.status === 'pending' ? (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                <p className="text-sm text-amber-700 text-center">
+                                  ⏳ Aguardando confirmação do administrador
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      }
+                      
+                      // PRIORIDADE 3: Usuário não está alocado e não confirmou interesse
+                      return (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600">
+                            Confirme seu interesse neste evento para que o administrador possa avaliar e gerenciar sua participação.
+                          </p>
+                          <Button
+                            onClick={handleConfirmInterest}
+                            disabled={interestLoading}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                          >
+                            {interestLoading ? 'Confirmando...' : 'Confirmar Interesse'}
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Informações de Prioridade - APENAS PARA GESTORES */}
               {isGestor && (

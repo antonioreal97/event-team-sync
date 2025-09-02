@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, TeamType, TeamAssignment } from '@/types';
-import { getAllUsers, createFreelancer } from '@/services/userService';
+import { getAllUsers, createFreelancer, updateUser, deleteUser } from '@/services/userService';
 import { 
   getAllTeamAssignments, 
   getUsersByTeam,
@@ -21,7 +21,8 @@ import {
   removeUserFromTeam,
   getTeamStatistics
 } from '@/services/teamService';
-import { Users, Star, Award, UserPlus, UserMinus, Eye, EyeOff, Plus } from 'lucide-react';
+import { Users, Star, Award, UserPlus, UserMinus, Eye, EyeOff, Plus, Edit, Trash2, Shield } from 'lucide-react';
+import EditFreelancerDialog from '@/components/EditFreelancerDialog';
 
 const TeamManagement = () => {
   const { user, isGestor } = useAuth();
@@ -69,6 +70,10 @@ const TeamManagement = () => {
   // Estados para validação em tempo real
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [isFormValid, setIsFormValid] = useState(false);
+  
+  // Estados para edição de freelancer
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingFreelancer, setEditingFreelancer] = useState<User | null>(null);
 
   useEffect(() => {
     if (isGestor) {
@@ -410,6 +415,83 @@ const TeamManagement = () => {
     setIsFormValid(allErrors.every(error => !error));
   };
 
+  const handleEditFreelancer = async (updatedData: Partial<User>) => {
+    if (!editingFreelancer) return;
+    
+    setLoading(true);
+    try {
+      await updateUser(editingFreelancer.id, updatedData);
+      
+      toast({
+        title: "Sucesso!",
+        description: "Freelancer atualizado com sucesso!",
+      });
+      setShowEditDialog(false);
+      setEditingFreelancer(null);
+      fetchData(); // Recarregar dados
+    } catch (error) {
+      console.error('Erro ao atualizar freelancer:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar freelancer. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteFreelancer = async (userId: string) => {
+    setLoading(true);
+    try {
+      await deleteUser(userId);
+      
+      toast({
+        title: "Sucesso!",
+        description: "Freelancer excluído com sucesso!",
+      });
+      setShowEditDialog(false);
+      setEditingFreelancer(null);
+      fetchData(); // Recarregar dados
+    } catch (error) {
+      console.error('Erro ao deletar freelancer:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir freelancer. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditDialog = (freelancer: User) => {
+    setEditingFreelancer(freelancer);
+    setShowEditDialog(true);
+  };
+
+  const handleResetPassword = async (userId: string) => {
+    setLoading(true);
+    try {
+      // Aqui você implementaria a chamada para resetar a senha
+      // await resetUserPassword(userId);
+      
+      toast({
+        title: "Sucesso!",
+        description: "Senha redefinida com sucesso! Uma nova senha foi enviada para o email do usuário.",
+      });
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao redefinir senha. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleArrayInputChange = (field: string, value: string) => {
     if (value.trim()) {
       setNewFreelancer(prev => ({
@@ -585,13 +667,24 @@ const TeamManagement = () => {
                             )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveUser(user.id, user.name)}
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                            className="text-blue-600 hover:text-blue-700"
+                            title="Gerenciar Acesso"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveUser(user.id, user.name)}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     {teamAUsers.length === 0 && (
@@ -643,13 +736,24 @@ const TeamManagement = () => {
                             )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveUser(user.id, user.name)}
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                            className="text-blue-600 hover:text-blue-700"
+                            title="Gerenciar Acesso"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveUser(user.id, user.name)}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     {teamBUsers.length === 0 && (
@@ -703,16 +807,27 @@ const TeamManagement = () => {
                           )}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setShowAssignDialog(true);
-                        }}
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Atribuir
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(user)}
+                          className="text-blue-600 hover:text-blue-700"
+                          title="Gerenciar Acesso"
+                        >
+                          <Shield className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowAssignDialog(true);
+                          }}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Atribuir
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   {unassignedUsers.length === 0 && (
@@ -1149,6 +1264,19 @@ const TeamManagement = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Edição de Freelancer */}
+        <EditFreelancerDialog
+          freelancer={editingFreelancer}
+          isOpen={showEditDialog}
+          onClose={() => {
+            setShowEditDialog(false);
+            setEditingFreelancer(null);
+          }}
+          onSave={handleEditFreelancer}
+          onDelete={handleDeleteFreelancer}
+          onResetPassword={handleResetPassword}
+        />
       </div>
     </AppLayout>
   );

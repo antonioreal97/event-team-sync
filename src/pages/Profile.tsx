@@ -116,6 +116,11 @@ const Profile = () => {
       }
     }
 
+    // Garantir que teamType não seja alterado pelo freelancer
+    if (profileData.teamType !== user?.teamType) {
+      newErrors.teamType = 'A equipe não pode ser alterada pelo freelancer';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -132,13 +137,17 @@ const Profile = () => {
 
     setSaving(true);
     try {
+      // Remover teamType dos dados a serem enviados, pois apenas o administrador pode alterá-lo
+      const dataToSend = { ...profileData };
+      delete dataToSend.teamType;
+
       const response = await fetch(`http://localhost:3001/api/users/${user?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('equipe-s4u-token')}`
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
@@ -332,21 +341,23 @@ const Profile = () => {
                   </div>
                   
                   <div>
-                    <Label htmlFor="teamType">Equipe</Label>
-                    <Select
-                      value={profileData.teamType || ''}
-                      onValueChange={(value) => handleInputChange('teamType', value)}
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a equipe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="equipe_a">Equipe A (Prioridade)</SelectItem>
-                        <SelectItem value="equipe_b">Equipe B (Suporte)</SelectItem>
-                        <SelectItem value="sem_equipe">Sem Equipe</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="teamType">Equipe Atual</Label>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary" className="text-sm">
+                          {profileData.teamType === 'equipe_a' ? 'Equipe A (Prioridade)' : 
+                           profileData.teamType === 'equipe_b' ? 'Equipe B (Suporte)' : 
+                           profileData.teamType === 'sem_equipe' ? 'Sem Equipe' : 'Não definida'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        <strong>Importante:</strong> A gestão de equipes é responsabilidade exclusiva do administrador. 
+                        Entre em contato com a administração se precisar de alterações em sua equipe.
+                      </p>
+                      {errors.teamType && (
+                        <p className="text-xs text-red-600 mt-1">{errors.teamType}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
