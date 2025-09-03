@@ -43,13 +43,18 @@ export const checkEventInterestStatus = async (eventId: string): Promise<EventIn
     });
 
     if (!response.ok) {
-      if (response.status === 404) {
-        return null; // Usuário não confirmou interesse ainda
-      }
       throw new Error(`Erro ao verificar status de interesse: ${response.status}`);
     }
 
     const data = await response.json();
+    
+    // Se não há interesse confirmado, retornar null
+    if (!data.hasInterest) {
+      console.log('ℹ️ Usuário não confirmou interesse ainda');
+      return null;
+    }
+    
+    // Se há interesse, retornar a confirmação
     return data.confirmation;
   } catch (error) {
     console.error('Erro ao verificar status de interesse:', error);

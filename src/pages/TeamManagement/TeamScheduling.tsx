@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event, User, AudioVisualRole, TeamAllocation } from '@/types';
-import { getAllEvents } from '@/services/eventService';
+import { getAllEvents, getEventsWithInterests, getEventInterests } from '@/services/eventService';
 import { getAllUsers, getAvailableUsersForEvent, searchUsers } from '@/services/userService';
 import { createTeamAllocation } from '@/services/eventService';
 import { format } from 'date-fns';
@@ -26,11 +26,13 @@ const TeamScheduling = () => {
   const { toast } = useToast();
   
   const [events, setEvents] = useState<Event[]>([]);
+  const [eventsWithInterests, setEventsWithInterests] = useState<Event[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [selectedRole, setSelectedRole] = useState<AudioVisualRole | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [eventInterests, setEventInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showAllocationDialog, setShowAllocationDialog] = useState(false);
@@ -41,11 +43,13 @@ const TeamScheduling = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [eventsData, usersData] = await Promise.all([
+        const [eventsData, eventsWithInterestsData, usersData] = await Promise.all([
           getAllEvents(),
+          getEventsWithInterests(),
           getAllUsers()
         ]);
         setEvents(eventsData);
+        setEventsWithInterests(eventsWithInterestsData);
         setUsers(usersData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -68,6 +72,12 @@ const TeamScheduling = () => {
     }
   }, [selectedEvent, selectedRole]);
 
+  useEffect(() => {
+    if (selectedEvent) {
+      fetchEventInterests();
+    }
+  }, [selectedEvent]);
+
   const fetchAvailableUsers = async () => {
     if (!selectedEvent || !selectedRole) return;
     
@@ -81,6 +91,17 @@ const TeamScheduling = () => {
       setAvailableUsers(available);
     } catch (error) {
       console.error('Failed to fetch available users:', error);
+    }
+  };
+
+  const fetchEventInterests = async () => {
+    if (!selectedEvent) return;
+    
+    try {
+      const interests = await getEventInterests(selectedEvent.id);
+      setEventInterests(interests);
+    } catch (error) {
+      console.error('Failed to fetch event interests:', error);
     }
   };
 
@@ -115,23 +136,16 @@ const TeamScheduling = () => {
       const user = users.find(u => u.id === userId);
       if (!user) return;
 
-      // Calculate hours and payment
+      // Calculate total days
       const startTime = new Date(selectedEvent.startDate);
       const endTime = new Date(selectedEvent.endDate);
-      const totalHours = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
-      const totalPayment = (user.hourlyRate || 0) * totalHours;
+      const totalDays = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       const allocationData = {
         eventId: selectedEvent.id,
         userId,
-        status: 'pending' as const,
-        confirmationDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         assignedRole: role,
-        hourlyRate: user.hourlyRate || 0,
-        totalHours,
-        totalPayment,
-        attended: false,
-        paymentStatus: 'pending' as const,
+        totalDays,
         notes: `Escalado automaticamente pelo sistema`,
       };
 
@@ -139,11 +153,12 @@ const TeamScheduling = () => {
 
       toast({
         title: 'Usuário escalado com sucesso',
-        description: `${user.name} foi escalado para ${selectedEvent.title}`,
+        description: `${user.name} foi escalado para ${selectedEvent.title}. A taxa diária foi calculada automaticamente baseada na equipe do freelancer.`,
       });
 
-      // Refresh available users
+      // Refresh data
       fetchAvailableUsers();
+      fetchEventInterests();
       setShowAllocationDialog(false);
       setSelectedUser(null);
     } catch (error) {
@@ -212,22 +227,29 @@ const TeamScheduling = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Escalar Equipe para Evento</CardTitle>
+                <p className="text-sm text-gray-600">Selecione um evento com freelancers interessados para escalar a equipe</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="event">Evento</Label>
+                    <Label htmlFor="event">Evento com Interesses</Label>
                     <Select onValueChange={(value) => {
-                      const event = events.find(e => e.id === value);
+                      const event = eventsWithInterests.find(e => e.id === value);
                       setSelectedEvent(event || null);
+                      setSelectedRole(''); // Reset role when event changes
                     }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um evento" />
+                        <SelectValue placeholder="Selecione um evento com interesses" />
                       </SelectTrigger>
                       <SelectContent>
-                        {events.map((event) => (
+                        {eventsWithInterests.map((event) => (
                           <SelectItem key={event.id} value={event.id}>
-                            {event.title}
+                            <div className="flex items-center justify-between w-full">
+                              <span>{event.title}</span>
+                              <Badge variant="secondary" className="ml-2">
+                                {(event as any).interest_count} interessados
+                              </Badge>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -253,57 +275,134 @@ const TeamScheduling = () => {
                   </div>
                 </div>
 
-                {selectedEvent && selectedRole && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-medium mb-4">Colaboradores Disponíveis</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {availableUsers.map((user) => (
-                        <Card key={user.id} className="p-4">
-                          <div className="flex items-start space-x-3">
-                            <Avatar>
-                              <AvatarImage src={user.avatar} />
-                              <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm">{user.name}</h4>
-                              <p className="text-xs text-gray-500">{user.email}</p>
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {user.audioVisualRoles.map((role) => (
-                                  <Badge key={role} variant="secondary" className={getRoleColor(role)}>
-                                    {role}
-                                  </Badge>
-                                ))}
-                              </div>
-                              <Badge variant="outline" className={getExperienceColor(user.experienceLevel)}>
-                                {user.experienceLevel}
-                              </Badge>
-                              <div className="flex items-center space-x-2 mt-2 text-xs text-gray-600">
-                                <MapPin className="w-3 h-3" />
-                                <span>{user.city}, {user.state}</span>
-                              </div>
-                              <div className="flex items-center space-x-2 mt-1 text-xs text-gray-600">
-                                <DollarSign className="w-3 h-3" />
-                                <span>R$ {user.hourlyRate}/h</span>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setShowAllocationDialog(true);
-                              }}
-                            >
-                              Escalar
-                            </Button>
-                          </div>
-                        </Card>
-                      ))}
+                {selectedEvent && (
+                  <div className="mt-6 space-y-6">
+                    {/* Freelancers Interessados */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4 flex items-center">
+                        <Users className="w-5 h-5 mr-2" />
+                        Freelancers Interessados ({eventInterests.length})
+                      </h3>
+                      {eventInterests.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {eventInterests.map((interest) => {
+                            const user = users.find(u => u.id === interest.user_id);
+                            if (!user) return null;
+                            
+                            return (
+                              <Card key={interest.id} className="p-4 border-l-4 border-l-blue-500">
+                                <div className="flex items-start space-x-3">
+                                  <Avatar>
+                                    <AvatarImage src={user.avatar} />
+                                    <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-sm">{user.name}</h4>
+                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {user.audioVisualRoles.map((role) => (
+                                        <Badge key={role} variant="secondary" className={getRoleColor(role)}>
+                                          {role}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                    <Badge variant="outline" className={getExperienceColor(user.experienceLevel)}>
+                                      {user.experienceLevel}
+                                    </Badge>
+                                    <div className="flex items-center space-x-2 mt-2 text-xs text-gray-600">
+                                      <MapPin className="w-3 h-3" />
+                                      <span>{user.city}, {user.state}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2 mt-1 text-xs text-gray-600">
+                                      <DollarSign className="w-3 h-3" />
+                                      <span>R$ {user.hourlyRate}/h</span>
+                                    </div>
+                                    <div className="mt-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {user.teamType === 'equipe_a' ? 'Equipe A' : 
+                                         user.teamType === 'equipe_b' ? 'Equipe B' : 'Sem Equipe'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setShowAllocationDialog(true);
+                                    }}
+                                  >
+                                    Escalar
+                                  </Button>
+                                </div>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <p>Nenhum freelancer interessado neste evento</p>
+                        </div>
+                      )}
                     </div>
-                    
-                    {availableUsers.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                        <p>Nenhum colaborador disponível para esta função e horário</p>
+
+                    {/* Colaboradores Disponíveis (se função selecionada) */}
+                    {selectedRole && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4 flex items-center">
+                          <Search className="w-5 h-5 mr-2" />
+                          Colaboradores Disponíveis para {selectedRole}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {availableUsers.map((user) => (
+                            <Card key={user.id} className="p-4">
+                              <div className="flex items-start space-x-3">
+                                <Avatar>
+                                  <AvatarImage src={user.avatar} />
+                                  <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm">{user.name}</h4>
+                                  <p className="text-xs text-gray-500">{user.email}</p>
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {user.audioVisualRoles.map((role) => (
+                                      <Badge key={role} variant="secondary" className={getRoleColor(role)}>
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                  <Badge variant="outline" className={getExperienceColor(user.experienceLevel)}>
+                                    {user.experienceLevel}
+                                  </Badge>
+                                  <div className="flex items-center space-x-2 mt-2 text-xs text-gray-600">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{user.city}, {user.state}</span>
+                                  </div>
+                                  <div className="flex items-center space-x-2 mt-1 text-xs text-gray-600">
+                                    <DollarSign className="w-3 h-3" />
+                                    <span>R$ {user.hourlyRate}/h</span>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowAllocationDialog(true);
+                                  }}
+                                >
+                                  Escalar
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                        
+                        {availableUsers.length === 0 && (
+                          <div className="text-center py-8 text-gray-500">
+                            <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                            <p>Nenhum colaborador disponível para esta função e horário</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
