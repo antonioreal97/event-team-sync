@@ -28,9 +28,13 @@ export const filterEventForUser = async (event: Event, user: User): Promise<Even
         endDate: event.endDate,
         status: event.status,
         eventType: event.eventType,
-        // Não incluir informações de prioridade de equipe
-        // Não incluir informações de orçamento
-        // Não incluir informações de outras equipes
+        estimatedDuration: event.estimatedDuration,
+        requirements: event.requirements,
+        userTeamType: user.teamType || 'sem_equipe',
+        userDailyRate: user.teamType === 'equipe_a' ? event.dailyRateTeamA : event.dailyRateTeamB,
+        totalDays: event.totalDays,
+        isMultiDay: event.isMultiDay,
+        workingDays: event.workingDays,
       };
     }
 
@@ -64,6 +68,13 @@ export const filterEventsListForUser = async (events: Event[], user: User): Prom
             endDate: event.endDate,
             status: event.status,
             eventType: event.eventType,
+            estimatedDuration: event.estimatedDuration,
+            requirements: event.requirements,
+            userTeamType: user.teamType || 'sem_equipe',
+            userDailyRate: user.teamType === 'equipe_a' ? event.dailyRateTeamA : event.dailyRateTeamB,
+            totalDays: event.totalDays,
+            isMultiDay: event.isMultiDay,
+            workingDays: event.workingDays,
           });
         }
       }

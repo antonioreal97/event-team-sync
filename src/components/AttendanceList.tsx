@@ -42,7 +42,7 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
   const fetchAttendanceList = async () => {
     try {
       setLoading(true);
-      const data = await getAttendanceList(eventId, eventDate);
+      const data = await getAttendanceList(eventId);
       setAttendanceList(data);
     } catch (error) {
       console.error('Failed to fetch attendance list:', error);
@@ -65,8 +65,7 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
         selectedAllocation.allocationId,
         eventDate,
         selectedStatus,
-        'gestor-id', // Em produção, usar ID real do gestor
-        statusNotes
+        statusNotes || ''
       );
 
       toast({
@@ -99,8 +98,7 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
       setUpdating(true);
       await confirmDailyPayment(
         allocationId,
-        eventDate,
-        'gestor-id' // Em produção, usar ID real do gestor
+        eventDate
       );
 
       toast({
