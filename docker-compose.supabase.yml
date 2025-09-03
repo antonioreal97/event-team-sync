@@ -1,0 +1,39 @@
+version: '3.8'
+
+# Docker Compose para usar com Supabase
+# Este arquivo remove o PostgreSQL local e usa apenas o servidor e frontend
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: frela_server_supabase
+    ports:
+      - "3001:3001"
+    env_file:
+      - config.supabase.env
+    networks:
+      - frela_network
+    volumes:
+      - ./server:/app/server
+    restart: unless-stopped
+    environment:
+      - USE_SUPABASE=true
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: frela_web_supabase
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    networks:
+      - frela_network
+    restart: unless-stopped
+
+networks:
+  frela_network:
+    driver: bridge

@@ -44,6 +44,7 @@ const EditEvent = () => {
     specialInstructions: '',
     setupRequirements: '',
     technicalSpecifications: '',
+    status: 'planning' as 'planning' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled',
   });
 
   const [pricingSummary, setPricingSummary] = useState<any>(null);
@@ -137,6 +138,7 @@ const EditEvent = () => {
         specialInstructions: eventData.specialInstructions || '',
         setupRequirements: eventData.setupRequirements || '',
         technicalSpecifications: eventData.technicalSpecifications || '',
+        status: eventData.status || 'planning',
       });
 
 
@@ -274,6 +276,7 @@ const EditEvent = () => {
         special_instructions: formData.specialInstructions,
         setup_requirements: formData.setupRequirements,
         technical_specifications: formData.technicalSpecifications,
+        status: formData.status,
       };
 
       await updateEvent(id, eventData);
@@ -410,7 +413,7 @@ const EditEvent = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="title">Título do Evento *</Label>
                   <Input
@@ -433,6 +436,27 @@ const EditEvent = () => {
                     <SelectContent>
                       <SelectItem value="normal">Evento Normal</SelectItem>
                       <SelectItem value="especial">Evento Especial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="status">Status do Evento *</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: 'planning' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled') => 
+                      setFormData(prev => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planning">Planejamento</SelectItem>
+                      <SelectItem value="confirmed">Confirmado</SelectItem>
+                      <SelectItem value="in_progress">Em Andamento</SelectItem>
+                      <SelectItem value="completed">Concluído</SelectItem>
+                      <SelectItem value="cancelled">Cancelado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

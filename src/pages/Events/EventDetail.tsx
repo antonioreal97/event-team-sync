@@ -80,6 +80,7 @@ const EventDetail = () => {
     if (!id || !user || user.role !== 'freelancer') return;
     
     try {
+      setStatusLoading(true);
       const status = await checkEventInterestStatus(id);
       setInterestStatus(status);
       
@@ -91,6 +92,10 @@ const EventDetail = () => {
       }
     } catch (error) {
       console.error('❌ Erro ao buscar status de interesse:', error);
+      // Em caso de erro, definir como null para evitar exibir o botão
+      setInterestStatus(null);
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -122,6 +127,11 @@ const EventDetail = () => {
         } else if (errorObj.error) {
           errorMessage = errorObj.error;
         }
+      }
+      
+      // Se o erro for que já confirmou interesse, recarregar o status
+      if (errorMessage.includes('já confirmou interesse')) {
+        await fetchInterestStatus();
       }
       
       toast({
@@ -268,8 +278,10 @@ const EventDetail = () => {
     switch(event?.status) {
       case 'planning':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Em Planejamento</Badge>;
-      case 'active':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Ativo</Badge>;
+      case 'confirmed':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Confirmado</Badge>;
+      case 'in_progress':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Em Andamento</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">Concluído</Badge>;
       case 'cancelled':
@@ -634,8 +646,16 @@ const EventDetail = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                                        {/* Verificar status de confirmação de interesse do freelancer */}
-                    {(() => {
+                    {/* Indicador de carregamento do status */}
+                    {statusLoading && (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-sm text-gray-600">Verificando status...</span>
+                      </div>
+                    )}
+                    
+                    {/* Verificar status de confirmação de interesse do freelancer */}
+                    {!statusLoading && (() => {
                       // PRIORIDADE 1: Verificar se o usuário confirmou interesse
                       if (interestStatus) {
                         return (

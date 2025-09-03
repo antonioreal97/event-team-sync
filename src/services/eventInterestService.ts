@@ -23,7 +23,22 @@ export const confirmEventInterest = async (eventId: string): Promise<EventIntere
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao confirmar interesse no evento');
+      console.error('Erro na resposta da API:', errorData);
+      
+      // Tratar erros específicos
+      if (response.status === 400 && errorData.error?.includes('já confirmou interesse')) {
+        throw new Error('Você já confirmou interesse neste evento');
+      }
+      
+      if (response.status === 403) {
+        throw new Error('Acesso negado. Apenas freelancers podem confirmar interesse');
+      }
+      
+      if (response.status === 404) {
+        throw new Error('Evento não encontrado');
+      }
+      
+      throw new Error(errorData.error || `Erro ao confirmar interesse no evento (${response.status})`);
     }
 
     const data = await response.json();
@@ -43,6 +58,11 @@ export const checkEventInterestStatus = async (eventId: string): Promise<EventIn
     });
 
     if (!response.ok) {
+      console.error(`Erro ao verificar status de interesse: ${response.status}`);
+      // Se for erro de autenticação, retornar null para evitar loops
+      if (response.status === 401 || response.status === 403) {
+        return null;
+      }
       throw new Error(`Erro ao verificar status de interesse: ${response.status}`);
     }
 
@@ -55,9 +75,11 @@ export const checkEventInterestStatus = async (eventId: string): Promise<EventIn
     }
     
     // Se há interesse, retornar a confirmação
+    console.log('✅ Status de interesse encontrado:', data.confirmation);
     return data.confirmation;
   } catch (error) {
     console.error('Erro ao verificar status de interesse:', error);
+    // Em caso de erro, retornar null para evitar que o botão seja exibido
     return null;
   }
 };
