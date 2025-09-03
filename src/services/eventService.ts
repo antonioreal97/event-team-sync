@@ -120,7 +120,6 @@ export const createTeamAllocation = async (allocationData: {
   eventId: string;
   userId: string;
   assignedRole: string;
-  dailyRate: number;
   totalDays: number;
   notes?: string;
 }): Promise<TeamAllocation> => {
@@ -277,5 +276,70 @@ export const getUserEvents = async (user: User): Promise<Event[]> => {
   } catch (error) {
     console.error('Erro ao buscar eventos do usuário:', error);
     return [];
+  }
+};
+
+// Buscar eventos com interesses confirmados para escalação
+export const getEventsWithInterests = async (): Promise<Event[]> => {
+  try {
+    const response = await fetch(buildApiUrl('/events/with-interests'), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar eventos com interesses: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data.events || []).map(transformEventFromBackend);
+  } catch (error) {
+    console.error('Erro ao buscar eventos com interesses:', error);
+    return [];
+  }
+};
+
+// Buscar interesses confirmados por evento
+export const getEventInterests = async (eventId: string): Promise<any[]> => {
+  try {
+    const response = await fetch(buildApiUrl('/event-interest/event/:eventId', { eventId }), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar interesses do evento: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.confirmations || [];
+  } catch (error) {
+    console.error('Erro ao buscar interesses do evento:', error);
+    return [];
+  }
+};
+
+// Atualizar status do evento
+export const updateEventStatus = async (eventId: string, status: string): Promise<Event> => {
+  try {
+    const response = await fetch(buildApiUrl('/events/:id/status', { id: eventId }), {
+      method: 'PATCH',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Erro ao atualizar status do evento: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return transformEventFromBackend(data.event);
+  } catch (error) {
+    console.error('Erro ao atualizar status do evento:', error);
+    throw error;
   }
 };

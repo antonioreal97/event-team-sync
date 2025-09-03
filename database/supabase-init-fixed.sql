@@ -1,5 +1,5 @@
--- Schema simples para Supabase - SEM Row Level Security
--- Execute este script no SQL Editor do Supabase
+-- Inicialização do banco de dados FRELA no Supabase
+-- Sistema de gerenciamento de equipes para eventos audiovisuais
 
 -- Habilitar extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS freelancer_profiles (
     hourly_rate DECIMAL(10,2),
     daily_rate DECIMAL(10,2),
     experience_level VARCHAR(20) CHECK (experience_level IN ('iniciante', 'intermediario', 'avancado', 'expert')),
-    audio_visual_roles TEXT[],
+    audio_visual_roles TEXT[], -- Array de roles
     bio TEXT,
     portfolio VARCHAR(500),
     linkedin VARCHAR(500),
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS events (
     status VARCHAR(20) DEFAULT 'planning' CHECK (status IN ('planning', 'confirmed', 'in_progress', 'completed', 'cancelled')),
     created_by UUID REFERENCES users(id),
     event_type VARCHAR(20) DEFAULT 'normal' CHECK (event_type IN ('normal', 'especial')),
-    estimated_duration INTEGER,
+    estimated_duration INTEGER, -- em horas
     budget DECIMAL(12,2),
     requirements TEXT[],
     notes TEXT,
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS payment_records (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de interesse em eventos
+-- Tabela de interesse em eventos (se existir)
 CREATE TABLE IF NOT EXISTS event_interests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID REFERENCES events(id) ON DELETE CASCADE,
@@ -243,12 +243,12 @@ CREATE TRIGGER update_payment_records_updated_at BEFORE UPDATE ON payment_record
 DROP TRIGGER IF EXISTS update_event_interests_updated_at ON event_interests;
 CREATE TRIGGER update_event_interests_updated_at BEFORE UPDATE ON event_interests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Inserir usuário gestor padrão
+-- Inserir usuário gestor padrão (se não existir)
 INSERT INTO users (id, name, email, password_hash, role) VALUES 
 ('550e8400-e29b-41d4-a716-446655440000', 'Administrador', 'admin@frela.com', '$2b$10$rQZ8K9LmN2PqR3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P', 'gestor')
 ON CONFLICT (id) DO NOTHING;
 
--- Inserir equipamentos padrão
+-- Inserir equipamentos padrão (se não existirem)
 INSERT INTO equipments (name, total_quantity, description, category, hourly_rate, daily_rate, condition, location) VALUES
 ('Câmera Profissional 4K', 5, 'Câmera profissional 4K com estabilização e zoom óptico', 'camera', 25, 200, 'excellent', 'Estúdio Principal'),
 ('Microfone Sem Fio', 10, 'Microfone sem fio com alcance de 100m e bateria de 8h', 'audio', 8, 60, 'good', 'Estúdio Principal'),
@@ -261,17 +261,30 @@ INSERT INTO equipments (name, total_quantity, description, category, hourly_rate
 ('Extensões', 10, 'Extensões com proteção contra surtos e múltiplas tomadas', 'power', 5, 35, 'excellent', 'Estúdio Principal')
 ON CONFLICT DO NOTHING;
 
--- Garantir que RLS está desabilitado
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE freelancer_profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE events DISABLE ROW LEVEL SECURITY;
-ALTER TABLE team_allocations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE attendance_records DISABLE ROW LEVEL SECURITY;
-ALTER TABLE equipments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE equipment_allocations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
-ALTER TABLE freelancer_invites DISABLE ROW LEVEL SECURITY;
-ALTER TABLE payment_records DISABLE ROW LEVEL SECURITY;
-ALTER TABLE event_interests DISABLE ROW LEVEL SECURITY;
+-- Configurar Row Level Security (RLS) para Supabase
+-- Habilitar RLS em todas as tabelas
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freelancer_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE equipments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE equipment_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE freelancer_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_interests ENABLE ROW LEVEL SECURITY;
 
-SELECT 'Schema criado com sucesso! RLS desabilitado.' as status;
+-- Políticas básicas de RLS (CORRIGIDAS - sem recursão)
+-- Para desenvolvimento, permitir acesso total (você pode ajustar depois)
+CREATE POLICY "Enable all access for service role" ON users FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON freelancer_profiles FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON events FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON team_allocations FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON attendance_records FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON equipments FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON equipment_allocations FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON notifications FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON freelancer_invites FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON payment_records FOR ALL USING (true);
+CREATE POLICY "Enable all access for service role" ON event_interests FOR ALL USING (true);

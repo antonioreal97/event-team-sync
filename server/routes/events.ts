@@ -43,6 +43,27 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
+// Buscar eventos com interesses confirmados (apenas gestores)
+router.get('/with-interests', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const result = await pool.query(`
+    SELECT DISTINCT 
+      e.*,
+      u.name as created_by_name,
+      COUNT(eic.id) as interest_count
+    FROM events e
+    LEFT JOIN users u ON e.created_by = u.id
+    LEFT JOIN event_interest_confirmations eic ON e.id = eic.event_id
+    WHERE e.status = 'planning'
+    GROUP BY e.id, u.name
+    HAVING COUNT(eic.id) > 0
+    ORDER BY e.start_date ASC
+  `);
+
+  res.json({
+    events: result.rows
+  });
+}));
+
 // Buscar evento por ID
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -63,15 +84,19 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
   const event = eventResult.rows[0];
 
-  // Se for freelancer, verificar se está alocado no evento
+  // Se for freelancer, verificar se pode acessar o evento
   if (userRole === 'freelancer') {
-    const allocationResult = await pool.query(
-      'SELECT id FROM team_allocations WHERE event_id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Freelancers podem acessar eventos confirmados (para confirmar interesse)
+    // ou eventos onde estão alocados
+    if (event.status !== 'confirmed') {
+      const allocationResult = await pool.query(
+        'SELECT id FROM team_allocations WHERE event_id = $1 AND user_id = $2',
+        [id, userId]
+      );
 
-    if (allocationResult.rows.length === 0) {
-      throw createError('Acesso negado', 403);
+      if (allocationResult.rows.length === 0) {
+        throw createError('Acesso negado', 403);
+      }
     }
   }
 
@@ -123,15 +148,29 @@ router.get('/user/:userId', asyncHandler(async (req: Request, res: Response) => 
     throw createError('Acesso negado', 403);
   }
 
-  // Buscar eventos onde o usuário está alocado
-  const result = await pool.query(`
-    SELECT DISTINCT e.*, u.name as created_by_name
-    FROM events e
-    LEFT JOIN users u ON e.created_by = u.id
-    INNER JOIN team_allocations ta ON e.id = ta.event_id
-    WHERE ta.user_id = $1
-    ORDER BY e.start_date DESC
-  `, [userId]);
+  let query = '';
+  let params: any[] = [];
+
+  if (currentUserRole === 'gestor') {
+    // Gestores veem todos os eventos
+    query = `
+      SELECT e.*, u.name as created_by_name
+      FROM events e
+      LEFT JOIN users u ON e.created_by = u.id
+      ORDER BY e.start_date DESC
+    `;
+  } else {
+    // Freelancers veem todos os eventos confirmados (para poder confirmar interesse)
+    query = `
+      SELECT e.*, u.name as created_by_name
+      FROM events e
+      LEFT JOIN users u ON e.created_by = u.id
+      WHERE e.status = 'confirmed'
+      ORDER BY e.start_date DESC
+    `;
+  }
+
+  const result = await pool.query(query, params);
 
   console.log('📊 Eventos encontrados para usuário:', userId);
   console.log('📋 Resultado da query:', result.rows.map(row => ({
@@ -139,10 +178,7 @@ router.get('/user/:userId', asyncHandler(async (req: Request, res: Response) => 
     title: row.title,
     start_date: row.start_date,
     end_date: row.end_date,
-    start_date_type: typeof row.start_date,
-    end_date_type: typeof row.end_date,
-    start_date_value: row.start_date,
-    end_date_value: row.end_date
+    status: row.status
   })));
 
   res.json({
@@ -203,6 +239,39 @@ router.post('/', requireGestor, asyncHandler(async (req: Request, res: Response)
 
   res.status(201).json({
     message: 'Evento criado com sucesso',
+    event: result.rows[0]
+  });
+}));
+
+// Atualizar status do evento (apenas gestores)
+router.patch('/:id/status', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  // Validar status
+  const validStatuses = ['planning', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+  if (!status || !validStatuses.includes(status)) {
+    throw createError('Status inválido. Status permitidos: planning, confirmed, in_progress, completed, cancelled', 400);
+  }
+
+  // Verificar se evento existe
+  const existingEvent = await pool.query(
+    'SELECT id, title FROM events WHERE id = $1',
+    [id]
+  );
+
+  if (existingEvent.rows.length === 0) {
+    throw createError('Evento não encontrado', 404);
+  }
+
+  // Atualizar status
+  const result = await pool.query(
+    'UPDATE events SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+    [status, id]
+  );
+
+  res.json({
+    message: `Status do evento "${existingEvent.rows[0].title}" atualizado para "${status}" com sucesso`,
     event: result.rows[0]
   });
 }));
@@ -457,12 +526,19 @@ router.get('/:id/interest-status', asyncHandler(async (req: Request, res: Respon
   );
 
   if (result.rows.length === 0) {
-    throw createError('Confirmação de interesse não encontrada', 404);
+    // Retornar status indicando que não há confirmação de interesse
+    res.json({
+      hasInterest: false,
+      status: null,
+      message: 'Usuário não confirmou interesse ainda'
+    });
+  } else {
+    res.json({
+      hasInterest: true,
+      status: result.rows[0].status,
+      confirmation: result.rows[0]
+    });
   }
-
-  res.json({
-    confirmation: result.rows[0]
-  });
 }));
 
 // Cancelar interesse em evento
@@ -484,6 +560,17 @@ router.delete('/:id/cancel-interest', asyncHandler(async (req: Request, res: Res
 
   if (existingInterest.rows.length === 0) {
     throw createError('Confirmação de interesse não encontrada', 404);
+  }
+
+  // Verificar se o freelancer já está escalado (status 'confirmed' na team_allocations)
+  const allocationResult = await pool.query(
+    'SELECT id, status FROM team_allocations WHERE event_id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  // Se o usuário está escalado (status 'confirmed'), não permitir cancelamento
+  if (allocationResult.rows.length > 0 && allocationResult.rows[0].status === 'confirmed') {
+    throw createError('Não é possível cancelar interesse após ser escalado para o evento. Entre em contato com o administrador.', 403);
   }
 
   // Deletar confirmação de interesse

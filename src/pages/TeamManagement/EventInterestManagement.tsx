@@ -67,7 +67,28 @@ const EventInterestManagement = () => {
       }
 
       const data = await response.json();
-      setConfirmations(data.confirmations);
+      
+      // Transformar dados do backend (snake_case) para o formato da interface (camelCase)
+      const transformedConfirmations = data.confirmations.map((confirmation: any) => ({
+        id: confirmation.id,
+        eventId: confirmation.event_id,
+        userId: confirmation.user_id,
+        status: confirmation.status,
+        confirmedAt: confirmation.confirmed_at,
+        rejectedAt: confirmation.rejected_at,
+        notes: confirmation.notes,
+        createdAt: confirmation.created_at,
+        updatedAt: confirmation.updated_at,
+        eventTitle: confirmation.event_title,
+        eventStartDate: confirmation.event_start_date,
+        eventEndDate: confirmation.event_end_date,
+        userName: confirmation.user_name,
+        userEmail: confirmation.user_email,
+        teamType: confirmation.team_type,
+        experienceLevel: confirmation.experience_level
+      }));
+      
+      setConfirmations(transformedConfirmations);
     } catch (error) {
       console.error('Erro ao buscar confirmações:', error);
       toast({
@@ -311,12 +332,12 @@ const EventInterestManagement = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 font-semibold">
-                            {confirmation.userName.charAt(0).toUpperCase()}
+                            {confirmation.userName ? confirmation.userName.charAt(0).toUpperCase() : '?'}
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold">{confirmation.userName}</h3>
-                          <p className="text-sm text-gray-600">{confirmation.userEmail}</p>
+                          <h3 className="font-semibold">{confirmation.userName || 'Nome não disponível'}</h3>
+                          <p className="text-sm text-gray-600">{confirmation.userEmail || 'Email não disponível'}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -338,18 +359,21 @@ const EventInterestManagement = () => {
                             <div className="space-y-4">
                               <div className="space-y-2">
                                 <h4 className="font-semibold">Evento</h4>
-                                <p className="text-gray-700">{confirmation.eventTitle}</p>
+                                <p className="text-gray-700">{confirmation.eventTitle || 'Evento não disponível'}</p>
                                 <div className="flex items-center space-x-4 text-sm text-gray-600">
                                   <span className="flex items-center space-x-1">
                                     <Calendar className="h-4 w-4" />
-                                    <span>{formatDate(confirmation.eventStartDate)} - {formatDate(confirmation.eventEndDate)}</span>
+                                    <span>
+                                      {confirmation.eventStartDate ? formatDate(confirmation.eventStartDate) : 'Data não disponível'} - 
+                                      {confirmation.eventEndDate ? formatDate(confirmation.eventEndDate) : 'Data não disponível'}
+                                    </span>
                                   </span>
                                 </div>
                               </div>
                               
                               <div className="space-y-2">
                                 <h4 className="font-semibold">Freelancer</h4>
-                                <p className="text-gray-700">{confirmation.userName}</p>
+                                <p className="text-gray-700">{confirmation.userName || 'Nome não disponível'}</p>
                                 <div className="flex items-center space-x-4 text-sm text-gray-600">
                                   {confirmation.teamType && (
                                     <span className="flex items-center space-x-1">
@@ -399,12 +423,13 @@ const EventInterestManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600">Evento:</p>
-                        <p className="font-medium">{confirmation.eventTitle}</p>
+                        <p className="font-medium">{confirmation.eventTitle || 'Evento não disponível'}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Data do Evento:</p>
                         <p className="font-medium">
-                          {formatDate(confirmation.eventStartDate)} - {formatDate(confirmation.eventEndDate)}
+                          {confirmation.eventStartDate ? formatDate(confirmation.eventStartDate) : 'Data não disponível'} - 
+                          {confirmation.eventEndDate ? formatDate(confirmation.eventEndDate) : 'Data não disponível'}
                         </p>
                       </div>
                       <div>
@@ -448,12 +473,12 @@ const EventInterestManagement = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                           <span className="text-green-600 font-semibold">
-                            {confirmation.userName.charAt(0).toUpperCase()}
+                            {confirmation.userName ? confirmation.userName.charAt(0).toUpperCase() : '?'}
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold">{confirmation.userName}</h3>
-                          <p className="text-sm text-gray-600">{confirmation.eventTitle}</p>
+                          <h3 className="font-semibold">{confirmation.userName || 'Nome não disponível'}</h3>
+                          <p className="text-sm text-gray-600">{confirmation.eventTitle || 'Evento não disponível'}</p>
                         </div>
                       </div>
                       <div className="text-sm text-gray-600">
@@ -484,12 +509,12 @@ const EventInterestManagement = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                           <span className="text-red-600 font-semibold">
-                            {confirmation.userName.charAt(0).toUpperCase()}
+                            {confirmation.userName ? confirmation.userName.charAt(0).toUpperCase() : '?'}
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold">{confirmation.userName}</h3>
-                          <p className="text-sm text-gray-600">{confirmation.eventTitle}</p>
+                          <h3 className="font-semibold">{confirmation.userName || 'Nome não disponível'}</h3>
+                          <p className="text-sm text-gray-600">{confirmation.eventTitle || 'Evento não disponível'}</p>
                           {confirmation.notes && (
                             <p className="text-sm text-red-600">Motivo: {confirmation.notes}</p>
                           )}

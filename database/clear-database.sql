@@ -48,3 +48,4 @@ SELECT 'Total de notificações:' as info, COUNT(*) as count FROM notifications;
 
 
 
+

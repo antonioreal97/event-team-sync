@@ -82,7 +82,6 @@ router.get('/', requireGestor, asyncHandler(async (req: Request, res: Response) 
     // Verificar se a tabela existe
     const tableExists = await checkTableExists();
     if (!tableExists) {
-      console.log('📋 Tabela não encontrada, criando...');
       const created = await createTableIfNotExists();
       if (!created) {
         throw createError('Não foi possível criar a tabela de confirmações de interesse', 500);
@@ -287,6 +286,79 @@ router.patch('/:id/reject', requireGestor, asyncHandler(async (req: Request, res
     });
   } catch (error) {
     console.error('❌ Erro ao rejeitar interesse:', error);
+    throw error;
+  }
+}));
+
+// Cancelar todas as confirmações de interesse de um evento (apenas gestores)
+router.delete('/event/:eventId/cancel-all', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const { eventId } = req.params;
+  const { reason } = req.body;
+
+  try {
+    const tableExists = await checkTableExists();
+    if (!tableExists) {
+      throw createError('Tabela de confirmações de interesse não existe', 404);
+    }
+
+    // Verificar se o evento existe
+    const eventResult = await pool.query(
+      'SELECT id, title FROM events WHERE id = $1',
+      [eventId]
+    );
+
+    if (eventResult.rows.length === 0) {
+      throw createError('Evento não encontrado', 404);
+    }
+
+    // Buscar todas as confirmações de interesse para o evento
+    const confirmationsResult = await pool.query(
+      'SELECT * FROM event_interest_confirmations WHERE event_id = $1',
+      [eventId]
+    );
+
+    if (confirmationsResult.rows.length === 0) {
+      return res.json({
+        message: 'Nenhuma confirmação de interesse encontrada para este evento',
+        cancelledCount: 0
+      });
+    }
+
+    // Deletar todas as confirmações de interesse
+    const deleteResult = await pool.query(
+      'DELETE FROM event_interest_confirmations WHERE event_id = $1',
+      [eventId]
+    );
+
+    // Criar notificações para todos os freelancers afetados
+    for (const confirmation of confirmationsResult.rows) {
+      try {
+        await pool.query(`
+          INSERT INTO notifications (
+            user_id, title, message, type, related_event_id, priority, action_required, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        `, [
+          confirmation.user_id,
+          'Confirmação de Interesse Cancelada',
+          `Sua confirmação de interesse no evento "${eventResult.rows[0].title}" foi cancelada pelo administrador.${reason ? ` Motivo: ${reason}` : ' O administrador ainda não escalou toda a equipe para o evento.'}`,
+          'allocation',
+          eventId,
+          'medium',
+          false
+        ]);
+      } catch (notificationError) {
+        console.warn('⚠️ Não foi possível criar notificação para usuário:', confirmation.user_id, notificationError.message);
+        // Continua mesmo se a notificação falhar
+      }
+    }
+
+    res.json({
+      message: 'Todas as confirmações de interesse foram canceladas com sucesso',
+      cancelledCount: confirmationsResult.rows.length,
+      eventTitle: eventResult.rows[0].title
+    });
+  } catch (error) {
+    console.error('❌ Erro ao cancelar confirmações de interesse:', error);
     throw error;
   }
 }));

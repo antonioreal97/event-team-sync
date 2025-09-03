@@ -112,7 +112,7 @@ export interface Event {
   location: string;
   startDate: string;
   endDate: string;
-  status: 'planning' | 'active' | 'completed' | 'cancelled';
+  status: 'planning' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -157,7 +157,7 @@ export interface EventForFreelancer {
   location: string;
   startDate: string;
   endDate: string;
-  status: 'planning' | 'active' | 'completed' | 'cancelled';
+  status: 'planning' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   eventType: EventType;
   estimatedDuration: number;
   budget?: number;

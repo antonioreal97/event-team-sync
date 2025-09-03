@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
-import { getEventById } from '@/services/eventService';
+import { getEventById, updateEventStatus } from '@/services/eventService';
 import { confirmEventInterest, checkEventInterestStatus, cancelEventInterest, EventInterestConfirmation } from '@/services/eventInterestService';
 import { 
   Calendar, 
@@ -35,6 +37,7 @@ const EventDetail = () => {
   const [loading, setLoading] = useState(true);
   const [interestStatus, setInterestStatus] = useState<EventInterestConfirmation | null>(null);
   const [interestLoading, setInterestLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -77,10 +80,22 @@ const EventDetail = () => {
     if (!id || !user || user.role !== 'freelancer') return;
     
     try {
+      setStatusLoading(true);
       const status = await checkEventInterestStatus(id);
       setInterestStatus(status);
+      
+      // Log apenas para debug (opcional)
+      if (status) {
+        console.log('✅ Status de interesse encontrado:', status);
+      } else {
+        console.log('ℹ️ Usuário não confirmou interesse ainda');
+      }
     } catch (error) {
-      console.error('Failed to fetch interest status:', error);
+      console.error('❌ Erro ao buscar status de interesse:', error);
+      // Em caso de erro, definir como null para evitar exibir o botão
+      setInterestStatus(null);
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -112,6 +127,11 @@ const EventDetail = () => {
         } else if (errorObj.error) {
           errorMessage = errorObj.error;
         }
+      }
+      
+      // Se o erro for que já confirmou interesse, recarregar o status
+      if (errorMessage.includes('já confirmou interesse')) {
+        await fetchInterestStatus();
       }
       
       toast({
@@ -146,6 +166,42 @@ const EventDetail = () => {
       });
     } finally {
       setInterestLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id || !event) return;
+    
+    try {
+      setStatusLoading(true);
+      const updatedEvent = await updateEventStatus(id, newStatus);
+      
+      setEvent(updatedEvent);
+      
+      toast({
+        title: 'Sucesso',
+        description: `Status do evento atualizado para "${getStatusLabel(newStatus)}"`,
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao atualizar status do evento',
+        variant: 'destructive',
+      });
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch(status) {
+      case 'planning': return 'Em Planejamento';
+      case 'confirmed': return 'Confirmado';
+      case 'in_progress': return 'Em Andamento';
+      case 'completed': return 'Concluído';
+      case 'cancelled': return 'Cancelado';
+      default: return status;
     }
   };
 
@@ -222,8 +278,10 @@ const EventDetail = () => {
     switch(event?.status) {
       case 'planning':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Em Planejamento</Badge>;
-      case 'active':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Ativo</Badge>;
+      case 'confirmed':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Confirmado</Badge>;
+      case 'in_progress':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Em Andamento</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">Concluído</Badge>;
       case 'cancelled':
@@ -412,15 +470,19 @@ const EventDetail = () => {
                       );
                     }
                     
-                    // Se for freelancer, mostrar apenas a equipe onde está alocado
-                    if (user && user.role === 'freelancer' && event.teamAllocations && event.teamAllocations.length > 0) {
+                    // Se for freelancer, mostrar apenas a equipe do usuário
+                    if (user && user.role === 'freelancer') {
                       console.log('🔍 Debug - ENTRANDO na lógica de freelancer');
                       console.log('🔍 Debug - user.role:', user.role);
-                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations.length);
+                      console.log('🔍 Debug - user.teamType:', user.teamType);
+                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations?.length || 0);
                       
-                      const userAllocation = event.teamAllocations.find(
-                        (allocation: any) => allocation.userId === user.id
-                      );
+                      let userAllocation = null;
+                      if (event.teamAllocations && event.teamAllocations.length > 0) {
+                        userAllocation = event.teamAllocations.find(
+                          (allocation: any) => allocation.userId === user.id
+                        );
+                      }
                       
                       console.log('🔍 Debug - User Allocation encontrada:', userAllocation);
                       console.log('🔍 Debug - Team Type do perfil:', (userAllocation as any)?.team_type);
@@ -535,6 +597,9 @@ const EventDetail = () => {
             <TabsTrigger value="details">Detalhes</TabsTrigger>
             <TabsTrigger value="schedule">Programação</TabsTrigger>
             <TabsTrigger value="team">Equipe</TabsTrigger>
+            {isGestor && (
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Detalhes do Evento */}
@@ -577,12 +642,20 @@ const EventDetail = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <CheckCircle className="h-5 w-5" />
-                      <span>Confirmação de Interesse</span>
+                      <span>Status de Participação</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                                        {/* Verificar status de confirmação de interesse do freelancer */}
-                    {(() => {
+                    {/* Indicador de carregamento do status */}
+                    {statusLoading && (
+                      <div className="flex items-center justify-center p-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-sm text-gray-600">Verificando status...</span>
+                      </div>
+                    )}
+                    
+                    {/* Verificar status de confirmação de interesse do freelancer */}
+                    {!statusLoading && (() => {
                       // PRIORIDADE 1: Verificar se o usuário confirmou interesse
                       if (interestStatus) {
                         return (
@@ -604,14 +677,40 @@ const EventDetail = () => {
                                     Seu interesse foi registrado e será analisado
                                   </p>
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  onClick={handleCancelInterest}
-                                  disabled={interestLoading}
-                                  className="w-full"
-                                >
-                                  {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
-                                </Button>
+                                
+                                {/* Verificar se o freelancer está escalado antes de mostrar o botão de cancelar */}
+                                {(() => {
+                                  const userAllocation = event.teamAllocations?.find(
+                                    allocation => allocation.userId === user.id
+                                  );
+                                  
+                                  // Se não está alocado ou está alocado mas não confirmado, permitir cancelamento
+                                  const canCancel = !userAllocation || userAllocation.status !== 'confirmed';
+                                  
+                                  if (canCancel) {
+                                    return (
+                                      <Button
+                                        variant="outline"
+                                        onClick={handleCancelInterest}
+                                        disabled={interestLoading}
+                                        className="w-full"
+                                      >
+                                        {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
+                                      </Button>
+                                    );
+                                  } else {
+                                    return (
+                                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p className="text-sm text-blue-700 text-center">
+                                          🔒 Você foi escalado para este evento
+                                        </p>
+                                        <p className="text-xs text-blue-600 text-center mt-1">
+                                          Não é possível cancelar interesse após ser escalado
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                })()}
                               </div>
                             )}
                             
@@ -658,10 +757,45 @@ const EventDetail = () => {
                                             <span className="font-medium">R$ {userAllocation.dailyRate}</span>
                                           </div>
                                         </div>
+                                        
+                                        {/* Verificar se pode cancelar interesse baseado no status da alocação */}
+                                        {userAllocation.status !== 'confirmed' && (
+                                          <div className="mt-3">
+                                            <Button
+                                              variant="outline"
+                                              onClick={handleCancelInterest}
+                                              disabled={interestLoading}
+                                              className="w-full"
+                                            >
+                                              {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
+                                            </Button>
+                                          </div>
+                                        )}
+                                        
+                                        {userAllocation.status === 'confirmed' && (
+                                          <div className="mt-3 p-2 bg-blue-100 border border-blue-300 rounded">
+                                            <p className="text-xs text-blue-800 text-center">
+                                              🔒 Você foi escalado para este evento. Não é possível cancelar interesse.
+                                            </p>
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   }
-                                  return null;
+                                  
+                                  // Se não está alocado ainda, permitir cancelamento
+                                  return (
+                                    <div className="mt-3">
+                                      <Button
+                                        variant="outline"
+                                        onClick={handleCancelInterest}
+                                        disabled={interestLoading}
+                                        className="w-full"
+                                      >
+                                        {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
+                                      </Button>
+                                    </div>
+                                  );
                                 })()}
                               </div>
                             )}
@@ -676,14 +810,40 @@ const EventDetail = () => {
                                     Entre em contato para mais informações
                                   </p>
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  onClick={handleCancelInterest}
-                                  disabled={interestLoading}
-                                  className="w-full"
-                                >
-                                  {interestLoading ? 'Cancelando...' : 'Remover Rejeição'}
-                                </Button>
+                                
+                                {/* Verificar se o freelancer está escalado antes de mostrar o botão de remover rejeição */}
+                                {(() => {
+                                  const userAllocation = event.teamAllocations?.find(
+                                    allocation => allocation.userId === user.id
+                                  );
+                                  
+                                  // Se não está alocado ou está alocado mas não confirmado, permitir remoção da rejeição
+                                  const canCancel = !userAllocation || userAllocation.status !== 'confirmed';
+                                  
+                                  if (canCancel) {
+                                    return (
+                                      <Button
+                                        variant="outline"
+                                        onClick={handleCancelInterest}
+                                        disabled={interestLoading}
+                                        className="w-full"
+                                      >
+                                        {interestLoading ? 'Removendo...' : 'Remover Rejeição'}
+                                      </Button>
+                                    );
+                                  } else {
+                                    return (
+                                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p className="text-sm text-blue-700 text-center">
+                                          🔒 Você foi escalado para este evento
+                                        </p>
+                                        <p className="text-xs text-blue-600 text-center mt-1">
+                                          Não é possível remover a rejeição após ser escalado
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                })()}
                               </div>
                             )}
                           </div>
@@ -695,13 +855,25 @@ const EventDetail = () => {
                         allocation => allocation.userId === user.id
                       );
                       
+                      // Debug: Log do status real da alocação
+                      if (userAllocation) {
+                        console.log('🔍 Status real da alocação:', {
+                          status: userAllocation.status,
+                          statusType: typeof userAllocation.status,
+                          statusLength: userAllocation.status ? userAllocation.status.length : 'null/undefined',
+                          assignedRole: userAllocation.assignedRole,
+                          dailyRate: userAllocation.dailyRate,
+                          fullAllocation: userAllocation
+                        });
+                      }
+                      
                       if (userAllocation) {
                         return (
                           <div className="space-y-3">
                             <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <span className="text-sm font-medium text-green-700">
-                                Você está alocado para este evento
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-700">
+                                Escalado para este Evento
                               </span>
                             </div>
                             
@@ -711,13 +883,39 @@ const EventDetail = () => {
                                 <span className="font-medium">{userAllocation.assignedRole}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-gray-600">Status:</span>
+                                <span className="text-gray-600">Status da Participação:</span>
                                 <Badge 
-                                  variant={userAllocation.status === 'confirmed' ? 'default' : 'secondary'}
+                                  variant={interestStatus ? 
+                                    (interestStatus.status === 'confirmed' ? 'default' : 'secondary') :
+                                    'secondary'
+                                  }
                                   className="text-xs"
                                 >
-                                  {userAllocation.status === 'confirmed' ? 'Confirmado' : 
-                                   userAllocation.status === 'pending' ? 'Pendente' : 'Cancelado'}
+                                  {interestStatus ? 
+                                    (interestStatus.status === 'pending' ? 'Pendente' :
+                                     interestStatus.status === 'confirmed' ? 'Confirmado' :
+                                     interestStatus.status === 'rejected' ? 'Rejeitado' : 'Desconhecido') :
+                                    'Não confirmado'
+                                  }
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Status da Alocação:</span>
+                                <Badge 
+                                  variant={
+                                    userAllocation.status === 'confirmed' && interestStatus?.status === 'confirmed' ? 'default' :
+                                    userAllocation.status === 'confirmed' && interestStatus?.status !== 'confirmed' ? 'secondary' :
+                                    userAllocation.status === 'pending' ? 'secondary' :
+                                    userAllocation.status === 'cancelled' ? 'destructive' :
+                                    'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {userAllocation.status === 'confirmed' && interestStatus?.status === 'confirmed' ? 'Confirmado' :
+                                   userAllocation.status === 'confirmed' && interestStatus?.status !== 'confirmed' ? 'Alocado pelo Admin' :
+                                   userAllocation.status === 'pending' ? 'Pendente' : 
+                                   userAllocation.status === 'cancelled' ? 'Cancelado' :
+                                   userAllocation.status || 'Desconhecido'}
                                 </Badge>
                               </div>
                               <div className="flex justify-between">
@@ -727,21 +925,49 @@ const EventDetail = () => {
                             </div>
                             
                             {userAllocation.status === 'confirmed' ? (
-                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <p className="text-sm text-green-700 text-center">
-                                  ✅ Sua participação foi confirmada pelo administrador
-                                </p>
-                                <p className="text-xs text-green-600 text-center mt-1">
-                                  Nota: Você foi alocado diretamente sem confirmação prévia de interesse
-                                </p>
+                              <div className="space-y-3">
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <p className="text-sm text-blue-700 text-center">
+                                    🎯 Você foi escalado pelo administrador para este evento
+                                  </p>
+                                  <p className="text-xs text-blue-600 text-center mt-1">
+                                    O administrador te escolheu especificamente para este evento
+                                  </p>
+                                </div>
+                                
+                                <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                  <p className="text-xs text-yellow-700 text-center">
+                                    ⚠️ Para confirmar sua participação, clique em "Confirmar Interesse" abaixo
+                                  </p>
+                                </div>
+                                
+                                <Button
+                                  onClick={handleConfirmInterest}
+                                  disabled={interestLoading}
+                                  className="w-full bg-green-600 hover:bg-green-700"
+                                >
+                                  {interestLoading ? 'Confirmando...' : 'Confirmar Interesse'}
+                                </Button>
                               </div>
                             ) : userAllocation.status === 'pending' ? (
                               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                                 <p className="text-sm text-amber-700 text-center">
                                   ⏳ Aguardando confirmação do administrador
                                 </p>
+                                <p className="text-xs text-amber-600 text-center mt-1">
+                                  Você foi escalado mas ainda não confirmado
+                                </p>
                               </div>
-                            ) : null}
+                            ) : (
+                              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <p className="text-sm text-gray-700 text-center">
+                                  📋 Status: {userAllocation.status || 'Desconhecido'}
+                                </p>
+                                <p className="text-xs text-gray-600 text-center mt-1">
+                                  Aguardando definição do status
+                                </p>
+                              </div>
+                            )}
                           </div>
                         );
                       }
@@ -986,6 +1212,89 @@ const EventDetail = () => {
               </Card>
             )}
           </TabsContent>
+
+          {/* Configurações do Evento (apenas para gestores) */}
+          {isGestor && (
+            <TabsContent value="settings" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Status do Evento */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Settings className="h-5 w-5" />
+                      <span>Status do Evento</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="eventStatus">Status Atual</Label>
+                      <div className="mt-2">
+                        {getStatusBadge()}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="statusSelect">Alterar Status</Label>
+                      <Select
+                        value={event?.status || ''}
+                        onValueChange={handleStatusChange}
+                        disabled={statusLoading}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Selecione um status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="planning">Em Planejamento</SelectItem>
+                          <SelectItem value="confirmed">Confirmado</SelectItem>
+                          <SelectItem value="in_progress">Em Andamento</SelectItem>
+                          <SelectItem value="completed">Concluído</SelectItem>
+                          <SelectItem value="cancelled">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="text-sm text-gray-600">
+                      <p><strong>Em Planejamento:</strong> Evento sendo planejado, não visível para freelancers</p>
+                      <p><strong>Confirmado:</strong> Evento confirmado, visível para freelancers</p>
+                      <p><strong>Em Andamento:</strong> Evento em execução</p>
+                      <p><strong>Concluído:</strong> Evento finalizado</p>
+                      <p><strong>Cancelado:</strong> Evento cancelado</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Informações do Evento */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Info className="h-5 w-5" />
+                      <span>Informações do Evento</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>ID do Evento</Label>
+                      <p className="text-sm text-gray-600 font-mono">{event?.id}</p>
+                    </div>
+                    
+                    <div>
+                      <Label>Criado em</Label>
+                      <p className="text-sm text-gray-600">
+                        {event?.createdAt ? formatDate(event.createdAt) : 'Não informado'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label>Última atualização</Label>
+                      <p className="text-sm text-gray-600">
+                        {event?.updatedAt ? formatDate(event.updatedAt) : 'Não informado'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Botões de Ação */}

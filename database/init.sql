@@ -232,3 +232,4 @@ INSERT INTO equipments (name, total_quantity, description, category, hourly_rate
 
 
 
+

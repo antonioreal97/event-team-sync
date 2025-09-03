@@ -147,7 +147,6 @@ export const allocateUserToEvent = async (allocationData: {
   eventId: string;
   userId: string;
   assignedRole: string;
-  dailyRate: number;
   totalDays: number;
   notes?: string;
 }): Promise<any> => {

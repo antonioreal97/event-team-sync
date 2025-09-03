@@ -42,19 +42,18 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
     eventId,
     userId,
     assignedRole,
-    dailyRate,
     totalDays,
     notes
   } = req.body;
 
   // Validações
-  if (!eventId || !userId || !assignedRole || !dailyRate || !totalDays) {
+  if (!eventId || !userId || !assignedRole || !totalDays) {
     throw createError('Dados obrigatórios não fornecidos', 400);
   }
 
-  // Verificar se evento existe
+  // Verificar se evento existe e buscar informações do evento
   const eventResult = await pool.query(
-    'SELECT id, start_date, end_date FROM events WHERE id = $1',
+    'SELECT id, start_date, end_date, event_type, daily_rate_team_a, daily_rate_team_b FROM events WHERE id = $1',
     [eventId]
   );
 
@@ -62,14 +61,32 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
     throw createError('Evento não encontrado', 404);
   }
 
-  // Verificar se usuário existe e é freelancer
-  const userResult = await pool.query(
-    'SELECT id, role FROM users WHERE id = $1 AND role = $2',
-    [userId, 'freelancer']
-  );
+  const event = eventResult.rows[0];
+
+  // Verificar se usuário existe e é freelancer, e buscar informações da equipe
+  const userResult = await pool.query(`
+    SELECT u.id, u.role, fp.team_type
+    FROM users u
+    LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
+    WHERE u.id = $1 AND u.role = $2
+  `, [userId, 'freelancer']);
 
   if (userResult.rows.length === 0) {
     throw createError('Usuário não encontrado ou não é freelancer', 404);
+  }
+
+  const user = userResult.rows[0];
+
+  // Calcular taxa diária baseada na equipe do freelancer
+  let dailyRate: number;
+  
+  if (user.team_type === 'equipe_a') {
+    dailyRate = event.daily_rate_team_a || 250; // Valor padrão para Equipe A
+  } else if (user.team_type === 'equipe_b') {
+    dailyRate = event.daily_rate_team_b || 200; // Valor padrão para Equipe B
+  } else {
+    // Se não tem equipe definida, usar valor padrão da Equipe B
+    dailyRate = event.daily_rate_team_b || 200;
   }
 
   // Verificar se já está alocado neste evento
@@ -100,9 +117,9 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
   ]);
 
   // Criar registros de presença para cada dia do evento
-  const event = eventResult.rows[0];
-  const startDate = new Date(event.start_date);
-  const endDate = new Date(event.end_date);
+  const eventData = eventResult.rows[0];
+  const startDate = new Date(eventData.start_date);
+  const endDate = new Date(eventData.end_date);
   
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
@@ -115,7 +132,11 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
 
   res.status(201).json({
     message: 'Freelancer alocado com sucesso',
-    allocation: result.rows[0]
+    allocation: {
+      ...result.rows[0],
+      team_type: user.team_type,
+      calculated_daily_rate: dailyRate
+    }
   });
 }));
 
