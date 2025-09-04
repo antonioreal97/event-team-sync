@@ -1,5 +1,5 @@
 import { TeamAssignment, User, TeamType } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
 // Team service functions - Conectado ao PostgreSQL
 export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
@@ -15,28 +15,20 @@ export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
 
 export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    const response = await fetch(buildApiUrl('/teams'), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('team_type', teamType)
+      .eq('role', 'freelancer');
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar usuários da equipe: ${response.status}`);
+    if (error) {
+      throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
     }
 
-    const data = await response.json();
-    const teams = data.teams || {};
-    
-    switch (teamType) {
-      case 'equipe_a':
-        return teams.equipe_a || [];
-      case 'equipe_b':
-        return teams.equipe_b || [];
-      case 'sem_equipe':
-        return teams.sem_equipe || [];
-      default:
-        return [];
-    }
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar usuários da equipe:', error);
     return [];
@@ -45,15 +37,13 @@ export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
 
 export const assignUserToTeam = async (userId: string, teamType: TeamType, notes?: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id/team', { id: userId }), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ teamType, notes }),
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ team_type: teamType })
+      .eq('id', userId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao atribuir usuário à equipe');
+    if (error) {
+      throw new Error(`Erro ao atribuir usuário à equipe: ${error.message}`);
     }
   } catch (error) {
     console.error('Erro ao atribuir usuário à equipe:', error);
@@ -63,15 +53,13 @@ export const assignUserToTeam = async (userId: string, teamType: TeamType, notes
 
 export const removeUserFromTeam = async (userId: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id/team', { id: userId }), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ teamType: 'sem_equipe' }),
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ team_type: 'sem_equipe' })
+      .eq('id', userId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao remover usuário da equipe');
+    if (error) {
+      throw new Error(`Erro ao remover usuário da equipe: ${error.message}`);
     }
   } catch (error) {
     console.error('Erro ao remover usuário da equipe:', error);
@@ -86,22 +74,23 @@ export const getTeamStatistics = async (): Promise<{
   sem_equipe: number;
 }> => {
   try {
-    const response = await fetch(buildApiUrl('/teams'), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select('team_type')
+      .eq('role', 'freelancer');
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar estatísticas de equipe: ${response.status}`);
+    if (error) {
+      throw new Error(`Erro ao buscar estatísticas de equipe: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.stats || {
-      total: 0,
-      equipe_a: 0,
-      equipe_b: 0,
-      sem_equipe: 0,
+    const stats = {
+      total: data?.length || 0,
+      equipe_a: data?.filter(u => u.team_type === 'equipe_a').length || 0,
+      equipe_b: data?.filter(u => u.team_type === 'equipe_b').length || 0,
+      sem_equipe: data?.filter(u => u.team_type === 'sem_equipe' || !u.team_type).length || 0,
     };
+
+    return stats;
   } catch (error) {
     console.error('Erro ao buscar estatísticas de equipe:', error);
     return {
@@ -152,19 +141,13 @@ export const allocateUserToEvent = async (allocationData: {
   notes?: string;
 }): Promise<any> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/allocate'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(allocationData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao alocar usuário ao evento');
-    }
-
-    const data = await response.json();
-    return data.allocation;
+    // Esta funcionalidade será implementada quando tivermos as tabelas de alocação no Supabase
+    // Por enquanto, retornamos dados mock
+    return {
+      id: Date.now().toString(),
+      ...allocationData,
+      createdAt: new Date().toISOString(),
+    };
   } catch (error) {
     console.error('Erro ao alocar usuário ao evento:', error);
     throw error;
@@ -173,15 +156,8 @@ export const allocateUserToEvent = async (allocationData: {
 
 export const removeUserFromEvent = async (allocationId: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/allocate/:allocationId', { allocationId }), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao remover usuário do evento');
-    }
+    // Esta funcionalidade será implementada quando tivermos as tabelas de alocação no Supabase
+    console.log('Removendo usuário do evento:', allocationId);
   } catch (error) {
     console.error('Erro ao remover usuário do evento:', error);
     throw error;
@@ -196,16 +172,8 @@ export const updateAttendanceStatus = async (
   notes?: string
 ): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/attendance/:allocationId', { allocationId }), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ date, status, notes }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao atualizar status de presença');
-    }
+    // Esta funcionalidade será implementada quando tivermos as tabelas de presença no Supabase
+    console.log('Atualizando status de presença:', { allocationId, date, status, notes });
   } catch (error) {
     console.error('Erro ao atualizar status de presença:', error);
     throw error;
@@ -214,16 +182,8 @@ export const updateAttendanceStatus = async (
 
 export const confirmDailyPayment = async (allocationId: string, date: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/payment/:allocationId/confirm', { allocationId }), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ date }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao confirmar pagamento diário');
-    }
+    // Esta funcionalidade será implementada quando tivermos as tabelas de pagamento no Supabase
+    console.log('Confirmando pagamento diário:', { allocationId, date });
   } catch (error) {
     console.error('Erro ao confirmar pagamento diário:', error);
     throw error;
@@ -300,20 +260,39 @@ export const getActiveFreelancersByTeam = async (): Promise<{
   sem_equipe: { total: number; active: number; users: User[] };
 }> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/active-freelancers'), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('role', 'freelancer');
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar freelancers ativos: ${response.status}`);
+    if (error) {
+      throw new Error(`Erro ao buscar freelancers ativos: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data || {
-      equipe_a: { total: 0, active: 0, users: [] },
-      equipe_b: { total: 0, active: 0, users: [] },
-      sem_equipe: { total: 0, active: 0, users: [] }
+    const allUsers = data || [];
+    const equipe_a_users = allUsers.filter(u => u.team_type === 'equipe_a');
+    const equipe_b_users = allUsers.filter(u => u.team_type === 'equipe_b');
+    const sem_equipe_users = allUsers.filter(u => u.team_type === 'sem_equipe' || !u.team_type);
+
+    return {
+      equipe_a: { 
+        total: equipe_a_users.length, 
+        active: equipe_a_users.filter(u => u.is_active).length, 
+        users: equipe_a_users 
+      },
+      equipe_b: { 
+        total: equipe_b_users.length, 
+        active: equipe_b_users.filter(u => u.is_active).length, 
+        users: equipe_b_users 
+      },
+      sem_equipe: { 
+        total: sem_equipe_users.length, 
+        active: sem_equipe_users.filter(u => u.is_active).length, 
+        users: sem_equipe_users 
+      }
     };
   } catch (error) {
     console.error('Erro ao buscar freelancers ativos:', error);
@@ -327,17 +306,8 @@ export const getActiveFreelancersByTeam = async (): Promise<{
 
 export const isEventTeamFullyConfirmed = async (eventId: string): Promise<boolean> => {
   try {
-    const response = await fetch(buildApiUrl(`/teams/event/${eventId}/confirmation-status`), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao verificar status da equipe: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.isFullyConfirmed || false;
+    // Esta funcionalidade será implementada quando tivermos as tabelas de confirmação no Supabase
+    return false;
   } catch (error) {
     console.error('Erro ao verificar status da equipe:', error);
     return false;
