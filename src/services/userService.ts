@@ -9,7 +9,8 @@ export const getAllUsers = async (): Promise<User[]> => {
       .select(`
         *,
         freelancer_profile:freelancer_profiles(*)
-      `);
+      `)
+      .eq('role', 'freelancer');
 
     if (error) {
       throw new Error(`Erro ao buscar usuários: ${error.message}`);
@@ -46,8 +47,19 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 
 export const getUsersByRole = async (role: string): Promise<User[]> => {
   try {
-    const users = await getAllUsers();
-    return users.filter(user => user.role === role);
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('role', role);
+
+    if (error) {
+      throw new Error(`Erro ao buscar usuários por role: ${error.message}`);
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar usuários por role:', error);
     return [];
@@ -60,8 +72,20 @@ export const getFreelancers = async (): Promise<User[]> => {
 
 export const getFreelancersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    const freelancers = await getFreelancers();
-    return freelancers.filter(user => user.teamType === teamType);
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles!inner(*)
+      `)
+      .eq('role', 'freelancer')
+      .eq('freelancer_profiles.team_type', teamType);
+
+    if (error) {
+      throw new Error(`Erro ao buscar freelancers por equipe: ${error.message}`);
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar freelancers por equipe:', error);
     return [];
@@ -113,12 +137,7 @@ export const createFreelancer = async (freelancerData: {
         email: freelancerData.email,
         name: freelancerData.name,
         role: 'freelancer',
-        team_type: freelancerData.teamType,
-        phone: freelancerData.phone,
-        address: freelancerData.address,
-        city: freelancerData.city,
-        state: freelancerData.state,
-        cpf: freelancerData.cpf,
+        password_hash: 'managed_by_supabase_auth',
         is_active: true,
       })
       .select()
@@ -133,6 +152,12 @@ export const createFreelancer = async (freelancerData: {
       .from('freelancer_profiles')
       .insert({
         user_id: authData.user.id,
+        team_type: freelancerData.teamType,
+        phone: freelancerData.phone,
+        address: freelancerData.address,
+        city: freelancerData.city,
+        state: freelancerData.state,
+        cpf: freelancerData.cpf,
         experience_level: freelancerData.experienceLevel,
         audio_visual_roles: freelancerData.audioVisualRoles,
         bio: freelancerData.bio,
@@ -180,9 +205,9 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
 export const updateUserTeam = async (id: string, teamType: TeamType): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('users')
+      .from('freelancer_profiles')
       .update({ team_type: teamType })
-      .eq('id', id);
+      .eq('user_id', id);
 
     if (error) {
       throw new Error(`Erro ao atualizar equipe do usuário: ${error.message}`);

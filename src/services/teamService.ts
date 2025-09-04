@@ -19,10 +19,10 @@ export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
       .from('users')
       .select(`
         *,
-        freelancer_profile:freelancer_profiles(*)
+        freelancer_profile:freelancer_profiles!inner(*)
       `)
-      .eq('team_type', teamType)
-      .eq('role', 'freelancer');
+      .eq('role', 'freelancer')
+      .eq('freelancer_profiles.team_type', teamType);
 
     if (error) {
       throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
@@ -38,9 +38,9 @@ export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
 export const assignUserToTeam = async (userId: string, teamType: TeamType, notes?: string): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('users')
+      .from('freelancer_profiles')
       .update({ team_type: teamType })
-      .eq('id', userId);
+      .eq('user_id', userId);
 
     if (error) {
       throw new Error(`Erro ao atribuir usuário à equipe: ${error.message}`);
@@ -54,9 +54,9 @@ export const assignUserToTeam = async (userId: string, teamType: TeamType, notes
 export const removeUserFromTeam = async (userId: string): Promise<void> => {
   try {
     const { error } = await supabase
-      .from('users')
+      .from('freelancer_profiles')
       .update({ team_type: 'sem_equipe' })
-      .eq('id', userId);
+      .eq('user_id', userId);
 
     if (error) {
       throw new Error(`Erro ao remover usuário da equipe: ${error.message}`);
@@ -76,7 +76,10 @@ export const getTeamStatistics = async (): Promise<{
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('team_type')
+      .select(`
+        id,
+        freelancer_profile:freelancer_profiles(team_type)
+      `)
       .eq('role', 'freelancer');
 
     if (error) {
@@ -85,9 +88,9 @@ export const getTeamStatistics = async (): Promise<{
 
     const stats = {
       total: data?.length || 0,
-      equipe_a: data?.filter(u => u.team_type === 'equipe_a').length || 0,
-      equipe_b: data?.filter(u => u.team_type === 'equipe_b').length || 0,
-      sem_equipe: data?.filter(u => u.team_type === 'sem_equipe' || !u.team_type).length || 0,
+      equipe_a: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'equipe_a').length || 0,
+      equipe_b: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'equipe_b').length || 0,
+      sem_equipe: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'sem_equipe' || !(u.freelancer_profile as any)?.team_type).length || 0,
     };
 
     return stats;
@@ -273,9 +276,9 @@ export const getActiveFreelancersByTeam = async (): Promise<{
     }
 
     const allUsers = data || [];
-    const equipe_a_users = allUsers.filter(u => u.team_type === 'equipe_a');
-    const equipe_b_users = allUsers.filter(u => u.team_type === 'equipe_b');
-    const sem_equipe_users = allUsers.filter(u => u.team_type === 'sem_equipe' || !u.team_type);
+    const equipe_a_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'equipe_a');
+    const equipe_b_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'equipe_b');
+    const sem_equipe_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'sem_equipe' || !u.freelancer_profile?.team_type);
 
     return {
       equipe_a: { 
