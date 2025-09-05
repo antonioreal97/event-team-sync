@@ -34,8 +34,21 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         return 'Data não informada';
       }
       
-      // Criar data no meio-dia para evitar problemas de timezone
-      const date = new Date(dateString + 'T12:00:00');
+      let date: Date;
+      
+      // Se a data já tem timezone (formato ISO), usar diretamente
+      if (dateString.includes('T') && (dateString.includes('+') || dateString.includes('Z'))) {
+        date = new Date(dateString);
+      } 
+      // Se é apenas data (YYYY-MM-DD), adicionar horário no meio-dia
+      else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        date = new Date(dateString + 'T12:00:00');
+      }
+      // Para outros formatos, tentar criar data diretamente
+      else {
+        date = new Date(dateString);
+      }
+      
       console.log('📅 Data criada:', date, 'É válida?', !isNaN(date.getTime()));
       
       if (isNaN(date.getTime())) {
@@ -62,8 +75,20 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     try {
       if (!dateString) return 'Horário não informado';
       
-      // Criar data no meio-dia para evitar problemas de timezone
-      const date = new Date(dateString + 'T12:00:00');
+      let date: Date;
+      
+      // Se a data já tem timezone (formato ISO), usar diretamente
+      if (dateString.includes('T') && (dateString.includes('+') || dateString.includes('Z'))) {
+        date = new Date(dateString);
+      } 
+      // Se é apenas data (YYYY-MM-DD), adicionar horário no meio-dia
+      else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        date = new Date(dateString + 'T12:00:00');
+      }
+      // Para outros formatos, tentar criar data diretamente
+      else {
+        date = new Date(dateString);
+      }
       
       if (isNaN(date.getTime())) {
         console.warn('Horário inválido detectado:', dateString);
