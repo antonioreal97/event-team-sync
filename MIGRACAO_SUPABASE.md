@@ -152,3 +152,5 @@ Após a migração bem-sucedida, você pode:
 ---
 
 **🎉 Parabéns!** Seu sistema FRELA agora está rodando no Supabase!
+
+

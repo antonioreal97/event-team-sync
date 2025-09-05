@@ -1,20 +1,22 @@
 import { User, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
-// User service functions - Conectado ao PostgreSQL
+// User service functions - Conectado ao Supabase
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    const response = await fetch(buildApiUrl('/users'), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('role', 'freelancer');
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar usuários: ${response.status}`);
+    if (error) {
+      throw new Error(`Erro ao buscar usuários: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.users || [];
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     return [];
@@ -23,17 +25,20 @@ export const getAllUsers = async (): Promise<User[]> => {
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id', { id }), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('id', id)
+      .single();
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar usuário: ${response.status}`);
+    if (error) {
+      throw new Error(`Erro ao buscar usuário: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.user;
+    return data;
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
     return undefined;
@@ -42,8 +47,19 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 
 export const getUsersByRole = async (role: string): Promise<User[]> => {
   try {
-    const users = await getAllUsers();
-    return users.filter(user => user.role === role);
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles(*)
+      `)
+      .eq('role', role);
+
+    if (error) {
+      throw new Error(`Erro ao buscar usuários por role: ${error.message}`);
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar usuários por role:', error);
     return [];
@@ -56,8 +72,20 @@ export const getFreelancers = async (): Promise<User[]> => {
 
 export const getFreelancersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    const freelancers = await getFreelancers();
-    return freelancers.filter(user => user.teamType === teamType);
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        freelancer_profile:freelancer_profiles!inner(*)
+      `)
+      .eq('role', 'freelancer')
+      .eq('freelancer_profiles.team_type', teamType);
+
+    if (error) {
+      throw new Error(`Erro ao buscar freelancers por equipe: ${error.message}`);
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Erro ao buscar freelancers por equipe:', error);
     return [];
@@ -87,20 +115,67 @@ export const createFreelancer = async (freelancerData: {
   languages?: string[];
 }): Promise<User> => {
   try {
-    const response = await fetch(buildApiUrl('/users'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(freelancerData),
+    // Criar usuário no Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: freelancerData.email,
+      password: freelancerData.password,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.error?.message || errorData.error || 'Erro ao criar freelancer';
-      throw new Error(errorMessage);
+    if (authError) {
+      throw new Error(`Erro na autenticação: ${authError.message}`);
     }
 
-    const data = await response.json();
-    return data.user;
+    if (!authData.user) {
+      throw new Error('Falha ao criar usuário');
+    }
+
+    // Criar registro na tabela users
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .insert({
+        id: authData.user.id,
+        email: freelancerData.email,
+        name: freelancerData.name,
+        role: 'freelancer',
+        password_hash: 'managed_by_supabase_auth',
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      throw new Error(`Erro ao criar usuário: ${userError.message}`);
+    }
+
+    // Criar perfil de freelancer
+    const { error: profileError } = await supabase
+      .from('freelancer_profiles')
+      .insert({
+        user_id: authData.user.id,
+        team_type: freelancerData.teamType,
+        phone: freelancerData.phone,
+        address: freelancerData.address,
+        city: freelancerData.city,
+        state: freelancerData.state,
+        cpf: freelancerData.cpf,
+        experience_level: freelancerData.experienceLevel,
+        audio_visual_roles: freelancerData.audioVisualRoles,
+        bio: freelancerData.bio,
+        portfolio: freelancerData.portfolio,
+        linkedin: freelancerData.linkedin,
+        instagram: freelancerData.instagram,
+        website: freelancerData.website,
+        previous_experience: freelancerData.previousExperience,
+        certifications: freelancerData.certifications,
+        equipment: freelancerData.equipment,
+        languages: freelancerData.languages,
+      });
+
+    if (profileError) {
+      throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+    }
+
+    return userData;
   } catch (error) {
     console.error('Erro ao criar freelancer:', error);
     throw error;
@@ -109,19 +184,18 @@ export const createFreelancer = async (freelancerData: {
 
 export const updateUser = async (id: string, userData: Partial<User>): Promise<User> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id', { id }), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(userData),
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .update(userData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao atualizar usuário');
+    if (error) {
+      throw new Error(`Erro ao atualizar usuário: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.user;
+    return data;
   } catch (error) {
     console.error('Erro ao atualizar usuário:', error);
     throw error;
@@ -130,15 +204,13 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
 
 export const updateUserTeam = async (id: string, teamType: TeamType): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id/team', { id }), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ teamType }),
-    });
+    const { error } = await supabase
+      .from('freelancer_profiles')
+      .update({ team_type: teamType })
+      .eq('user_id', id);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao atualizar equipe do usuário');
+    if (error) {
+      throw new Error(`Erro ao atualizar equipe do usuário: ${error.message}`);
     }
   } catch (error) {
     console.error('Erro ao atualizar equipe do usuário:', error);
@@ -148,15 +220,13 @@ export const updateUserTeam = async (id: string, teamType: TeamType): Promise<vo
 
 export const updateUserStatus = async (id: string, isActive: boolean): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id/status', { id }), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ isActive }),
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ is_active: isActive })
+      .eq('id', id);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao atualizar status do usuário');
+    if (error) {
+      throw new Error(`Erro ao atualizar status do usuário: ${error.message}`);
     }
   } catch (error) {
     console.error('Erro ao atualizar status do usuário:', error);
@@ -166,14 +236,13 @@ export const updateUserStatus = async (id: string, isActive: boolean): Promise<v
 
 export const deleteUser = async (id: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/users/:id', { id }), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao excluir usuário');
+    if (error) {
+      throw new Error(`Erro ao excluir usuário: ${error.message}`);
     }
   } catch (error) {
     console.error('Erro ao excluir usuário:', error);

@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getUnreadCount, getUserNotifications, markAsRead } from '@/services/notificationService';
+import { getUnreadNotifications, getAllNotifications, markNotificationAsRead } from '@/services/notificationService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from '@/types';
 
@@ -24,8 +24,8 @@ const NotificationIndicator: React.FC = () => {
     if (!user) return;
 
     const fetchUnreadCount = async () => {
-      const count = await getUnreadCount(user.id);
-      setUnreadCount(count);
+      const unreadNotifications = await getUnreadNotifications();
+      setUnreadCount(unreadNotifications.length);
     };
 
     fetchUnreadCount();
@@ -38,8 +38,8 @@ const NotificationIndicator: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const userNotifications = await getUserNotifications(user.id);
-      setNotifications(userNotifications.slice(0, 5)); // Show only 5 most recent
+      const allNotifications = await getAllNotifications();
+      setNotifications(allNotifications.slice(0, 5)); // Show only 5 most recent
     } catch (error) {
       console.error('Failed to load notifications:', error);
     } finally {
@@ -55,7 +55,7 @@ const NotificationIndicator: React.FC = () => {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
-    await markAsRead(notification.id);
+    await markNotificationAsRead(notification.id);
     setUnreadCount(prev => Math.max(0, prev - 1));
     
     // Update the notification in our state as well

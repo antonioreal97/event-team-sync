@@ -37,3 +37,5 @@ services:
 networks:
   frela_network:
     driver: bridge
+
+

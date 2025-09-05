@@ -118,7 +118,13 @@ const Login = () => {
         </CardContent>
         
         <CardFooter className="flex flex-col pt-6">
-          {/* Footer limpo - legenda removida */}
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">Credenciais de demonstração:</p>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p><strong>Gestor:</strong> admin@frela.com / admin123</p>
+              <p><strong>Freelancer:</strong> freelancer@frela.com / freelancer123</p>
+            </div>
+          </div>
         </CardFooter>
       </Card>
     </div>

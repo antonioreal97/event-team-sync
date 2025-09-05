@@ -26,3 +26,5 @@ ALTER TABLE payment_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE event_interests DISABLE ROW LEVEL SECURITY;
 
 -- Agora execute o arquivo supabase-init-fixed.sql
+
+

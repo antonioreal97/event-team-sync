@@ -85,8 +85,8 @@ const TeamScheduling = () => {
       const available = await getAvailableUsersForEvent(
         selectedEvent.id,
         [selectedRole],
-        selectedEvent.startDate,
-        selectedEvent.endDate
+        new Date(selectedEvent.startDate),
+        new Date(selectedEvent.endDate)
       );
       setAvailableUsers(available);
     } catch (error) {
@@ -107,14 +107,12 @@ const TeamScheduling = () => {
 
   const handleSearchUsers = async () => {
     if (!searchQuery.trim()) {
-      setAvailableUsers(users.filter(u => u.role === 'collaborator'));
+      setAvailableUsers(users.filter(u => u.role === 'freelancer'));
       return;
     }
 
     try {
-      const searchResults = await searchUsers(searchQuery, {
-        roles: selectedRole ? [selectedRole] : undefined
-      });
+      const searchResults = await searchUsers(searchQuery);
       setAvailableUsers(searchResults);
     } catch (error) {
       console.error('Failed to search users:', error);

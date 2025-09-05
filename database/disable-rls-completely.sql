@@ -38,3 +38,5 @@ ALTER TABLE event_interests DISABLE ROW LEVEL SECURITY;
 
 -- Verificar se as tabelas existem e criar se necessário
 SELECT 'RLS desabilitado com sucesso!' as status;
+
+

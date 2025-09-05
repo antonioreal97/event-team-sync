@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
-import { buildApiUrl } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -27,77 +27,171 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem('equipe-s4u-user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('equipe-s4u-user');
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          avatar: profile.avatar,
+          isActive: profile.is_active,
+          createdAt: profile.created_at,
+          updatedAt: profile.updated_at,
+          teamType: profile.team_type,
+          phone: profile.phone,
+          address: profile.address,
+          city: profile.city,
+          state: profile.state,
+          cpf: profile.cpf,
+          hourlyRate: profile.hourly_rate,
+          dailyRate: profile.daily_rate,
+          experienceLevel: profile.experience_level,
+          audioVisualRoles: profile.audio_visual_roles || [],
+          bio: profile.bio,
+          portfolio: profile.portfolio,
+          linkedin: profile.linkedin,
+          instagram: profile.instagram,
+          website: profile.website,
+          previousExperience: profile.previous_experience,
+          certifications: profile.certifications || [],
+          equipment: profile.equipment || [],
+          languages: profile.languages || [],
+          totalEventsAttended: profile.total_events_attended || 0,
+          totalEarnings: profile.total_earnings || 0,
+          averageRating: profile.average_rating,
+        };
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl('/auth/login'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro no login');
+      // Demo login for development - create demo users
+      if (email === 'admin@frela.com' && password === 'admin123') {
+        const demoUser: User = {
+          id: 'demo-admin-001',
+          name: 'Administrador',
+          email: 'admin@frela.com',
+          role: 'gestor',
+          avatar: null,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          teamType: undefined,
+          phone: null,
+          address: null,
+          city: null,
+          state: null,
+          cpf: null,
+          hourlyRate: null,
+          dailyRate: null,
+          experienceLevel: 'expert',
+          audioVisualRoles: [],
+          bio: null,
+          portfolio: null,
+          linkedin: null,
+          instagram: null,
+          website: null,
+          previousExperience: null,
+          certifications: [],
+          equipment: [],
+          languages: [],
+          totalEventsAttended: 0,
+          totalEarnings: 0,
+          averageRating: undefined,
+        };
+        setUser(demoUser);
+        return;
       }
 
-      const data = await response.json();
-      
-      // Criar objeto User compatível com o frontend
-      const userData: User = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role,
-        avatar: data.user.avatar,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // Campos específicos de freelancer
-        teamType: data.user.profile?.team_type || null,
-        phone: data.user.profile?.phone || null,
-        address: data.user.profile?.address || null,
-        city: data.user.profile?.city || null,
-        state: data.user.profile?.state || null,
-        cpf: data.user.profile?.cpf || null,
-        hourlyRate: data.user.profile?.hourly_rate || null,
-        dailyRate: data.user.profile?.daily_rate || null,
-        experienceLevel: data.user.profile?.experience_level || null,
-        audioVisualRoles: data.user.profile?.audio_visual_roles || [],
-        bio: data.user.profile?.bio || null,
-        portfolio: data.user.profile?.portfolio || null,
-        linkedin: data.user.profile?.linkedin || null,
-        instagram: data.user.profile?.instagram || null,
-        website: data.user.profile?.website || null,
-        previousExperience: data.user.profile?.previous_experience || null,
-        certifications: data.user.profile?.certifications || [],
-        equipment: data.user.profile?.equipment || [],
-        languages: data.user.profile?.languages || [],
-        totalEventsAttended: data.user.profile?.total_events_attended || 0,
-        totalEarnings: data.user.profile?.total_earnings || 0,
-        averageRating: data.user.profile?.average_rating || 0,
-      };
+      if (email === 'freelancer@frela.com' && password === 'freelancer123') {
+        const demoUser: User = {
+          id: 'demo-freelancer-001',
+          name: 'Freelancer Demo',
+          email: 'freelancer@frela.com',
+          role: 'freelancer',
+          avatar: null,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          teamType: 'equipe_a',
+          phone: '(11) 99999-9999',
+          address: 'Rua Demo, 123',
+          city: 'São Paulo',
+          state: 'SP',
+          cpf: '000.000.000-00',
+          hourlyRate: 50,
+          dailyRate: 400,
+          experienceLevel: 'intermediario',
+          audioVisualRoles: ['camera', 'audio'],
+          bio: 'Freelancer especializado em audiovisual',
+          portfolio: null,
+          linkedin: null,
+          instagram: null,
+          website: null,
+          previousExperience: null,
+          certifications: [],
+          equipment: [],
+          languages: ['Português', 'Inglês'],
+          totalEventsAttended: 5,
+          totalEarnings: 2000,
+          averageRating: 4.5,
+        };
+        setUser(demoUser);
+        return;
+      }
 
-      setUser(userData);
-      localStorage.setItem('equipe-s4u-user', JSON.stringify(userData));
-      
-      // Armazenar token JWT
-      localStorage.setItem('equipe-s4u-token', data.token);
+      // For production, use Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        await loadUserProfile(data.user.id);
+      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -106,10 +200,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-          localStorage.removeItem('equipe-s4u-user');
-      localStorage.removeItem('equipe-s4u-token');
   };
 
   const isGestor = user?.role === 'gestor';

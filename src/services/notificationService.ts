@@ -41,7 +41,7 @@ export const getNotificationById = async (id: string): Promise<Notification | un
   }
 };
 
-export const createNotification = async (notificationData: Omit<Notification, 'id' | 'createdAt' | 'isRead'>): Promise<Notification> => {
+export const createNotification = async (notificationData: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> => {
   try {
     const response = await fetch(buildApiUrl('/notifications'), {
       method: 'POST',
@@ -117,7 +117,7 @@ export const deleteNotification = async (id: string): Promise<void> => {
 export const getUnreadNotifications = async (): Promise<Notification[]> => {
   try {
     const notifications = await getAllNotifications();
-    return notifications.filter(notification => !notification.isRead);
+    return notifications.filter(notification => !notification.read);
   } catch (error) {
     console.error('Erro ao buscar notificações não lidas:', error);
     return [];
@@ -161,8 +161,8 @@ export const getNotificationStatistics = async (): Promise<{
 
     return {
       total: notifications.length,
-      unread: notifications.filter(n => !n.isRead).length,
-      read: notifications.filter(n => n.isRead).length,
+      unread: notifications.filter(n => !n.read).length,
+      read: notifications.filter(n => n.read).length,
       byType,
     };
   } catch (error) {
