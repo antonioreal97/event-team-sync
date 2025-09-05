@@ -57,44 +57,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data: profile, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          freelancer_profiles (*)
+        `)
         .eq('id', userId)
         .single();
 
       if (error) throw error;
 
       if (profile) {
+        const freelancerProfile = profile.freelancer_profiles?.[0];
+        
         const userData: User = {
           id: profile.id,
           name: profile.name,
           email: profile.email,
-          role: profile.role,
+          role: profile.role as 'gestor' | 'freelancer',
           avatar: profile.avatar,
           isActive: profile.is_active,
           createdAt: profile.created_at,
           updatedAt: profile.updated_at,
-          teamType: profile.team_type,
-          phone: profile.phone,
-          address: profile.address,
-          city: profile.city,
-          state: profile.state,
-          cpf: profile.cpf,
-          hourlyRate: profile.hourly_rate,
-          dailyRate: profile.daily_rate,
-          experienceLevel: profile.experience_level,
-          audioVisualRoles: profile.audio_visual_roles || [],
-          bio: profile.bio,
-          portfolio: profile.portfolio,
-          linkedin: profile.linkedin,
-          instagram: profile.instagram,
-          website: profile.website,
-          previousExperience: profile.previous_experience,
-          certifications: profile.certifications || [],
-          equipment: profile.equipment || [],
-          languages: profile.languages || [],
-          totalEventsAttended: profile.total_events_attended || 0,
-          totalEarnings: profile.total_earnings || 0,
-          averageRating: profile.average_rating,
+          teamType: freelancerProfile?.team_type as 'equipe_a' | 'equipe_b' | 'sem_equipe' | undefined,
+          phone: freelancerProfile?.phone,
+          address: freelancerProfile?.address,
+          city: freelancerProfile?.city,
+          state: freelancerProfile?.state,
+          cpf: freelancerProfile?.cpf,
+          hourlyRate: freelancerProfile?.hourly_rate,
+          dailyRate: freelancerProfile?.daily_rate,
+          experienceLevel: (freelancerProfile?.experience_level as 'iniciante' | 'intermediario' | 'avancado' | 'expert') || 'iniciante',
+          audioVisualRoles: (freelancerProfile?.audio_visual_roles as ('camera' | 'audio' | 'lighting' | 'director' | 'producer' | 'assistant' | 'technician' | 'streaming' | 'editing')[]) || [],
+          bio: freelancerProfile?.bio,
+          portfolio: freelancerProfile?.portfolio,
+          linkedin: freelancerProfile?.linkedin,
+          instagram: freelancerProfile?.instagram,
+          website: freelancerProfile?.website,
+          previousExperience: freelancerProfile?.previous_experience,
+          certifications: freelancerProfile?.certifications || [],
+          equipment: freelancerProfile?.equipment || [],
+          languages: freelancerProfile?.languages || [],
+          totalEventsAttended: freelancerProfile?.total_events_attended || 0,
+          totalEarnings: freelancerProfile?.total_earnings || 0,
+          averageRating: freelancerProfile?.average_rating,
         };
         setUser(userData);
       }

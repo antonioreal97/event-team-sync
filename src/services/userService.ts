@@ -1,5 +1,6 @@
 import { User, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { mapSupabaseUserToUser, mapBasicUserToUser } from '@/utils/userMapper';
 
 // User service functions - Conectado ao Supabase
 export const getAllUsers = async (): Promise<User[]> => {
@@ -16,7 +17,7 @@ export const getAllUsers = async (): Promise<User[]> => {
       throw new Error(`Erro ao buscar usuários: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(mapSupabaseUserToUser);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     return [];
@@ -38,7 +39,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
       throw new Error(`Erro ao buscar usuário: ${error.message}`);
     }
 
-    return data;
+    return data ? mapSupabaseUserToUser(data) : undefined;
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
     return undefined;
@@ -59,7 +60,7 @@ export const getUsersByRole = async (role: string): Promise<User[]> => {
       throw new Error(`Erro ao buscar usuários por role: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(mapSupabaseUserToUser);
   } catch (error) {
     console.error('Erro ao buscar usuários por role:', error);
     return [];
@@ -85,7 +86,7 @@ export const getFreelancersByTeam = async (teamType: TeamType): Promise<User[]> 
       throw new Error(`Erro ao buscar freelancers por equipe: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(mapSupabaseUserToUser);
   } catch (error) {
     console.error('Erro ao buscar freelancers por equipe:', error);
     return [];
@@ -175,7 +176,7 @@ export const createFreelancer = async (freelancerData: {
       throw new Error(`Erro ao criar perfil: ${profileError.message}`);
     }
 
-    return userData;
+    return mapBasicUserToUser(userData);
   } catch (error) {
     console.error('Erro ao criar freelancer:', error);
     throw error;
@@ -195,7 +196,7 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
       throw new Error(`Erro ao atualizar usuário: ${error.message}`);
     }
 
-    return data;
+    return mapBasicUserToUser(data);
   } catch (error) {
     console.error('Erro ao atualizar usuário:', error);
     throw error;

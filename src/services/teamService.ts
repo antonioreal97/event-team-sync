@@ -1,5 +1,6 @@
 import { TeamAssignment, User, TeamType } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { mapSupabaseUserToUser } from '@/utils/userMapper';
 
 // Team service functions - Conectado ao PostgreSQL
 export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
@@ -28,7 +29,7 @@ export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
       throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(mapSupabaseUserToUser);
   } catch (error) {
     console.error('Erro ao buscar usuários da equipe:', error);
     return [];
@@ -274,25 +275,60 @@ export const getActiveFreelancersByTeam = async (): Promise<{
       throw new Error(`Erro ao buscar freelancers ativos: ${error.message}`);
     }
 
-    const allUsers = data || [];
-    const equipe_a_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'equipe_a');
-    const equipe_b_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'equipe_b');
-    const sem_equipe_users = allUsers.filter(u => u.freelancer_profile?.team_type === 'sem_equipe' || !u.freelancer_profile?.team_type);
+    const mappedUsers = (data || []).map(user => {
+      const freelancerProfile = user.freelancer_profile?.[0];
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as 'gestor' | 'freelancer',
+        avatar: user.avatar,
+        isActive: user.is_active,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+        teamType: freelancerProfile?.team_type as 'equipe_a' | 'equipe_b' | 'sem_equipe' | undefined,
+        phone: freelancerProfile?.phone,
+        address: freelancerProfile?.address,
+        city: freelancerProfile?.city,
+        state: freelancerProfile?.state,
+        cpf: freelancerProfile?.cpf,
+        hourlyRate: freelancerProfile?.hourly_rate,
+        dailyRate: freelancerProfile?.daily_rate,
+        experienceLevel: (freelancerProfile?.experience_level as 'iniciante' | 'intermediario' | 'avancado' | 'expert') || 'iniciante',
+        audioVisualRoles: (freelancerProfile?.audio_visual_roles as ('camera' | 'audio' | 'lighting' | 'director' | 'producer' | 'assistant' | 'technician' | 'streaming' | 'editing')[]) || [],
+        bio: freelancerProfile?.bio,
+        portfolio: freelancerProfile?.portfolio,
+        linkedin: freelancerProfile?.linkedin,
+        instagram: freelancerProfile?.instagram,
+        website: freelancerProfile?.website,
+        previousExperience: freelancerProfile?.previous_experience,
+        certifications: freelancerProfile?.certifications || [],
+        equipment: freelancerProfile?.equipment || [],
+        languages: freelancerProfile?.languages || [],
+        totalEventsAttended: freelancerProfile?.total_events_attended || 0,
+        totalEarnings: freelancerProfile?.total_earnings || 0,
+        averageRating: freelancerProfile?.average_rating,
+      };
+    });
+
+    const equipe_a_users = mappedUsers.filter(u => u.teamType === 'equipe_a');
+    const equipe_b_users = mappedUsers.filter(u => u.teamType === 'equipe_b');
+    const sem_equipe_users = mappedUsers.filter(u => u.teamType === 'sem_equipe' || !u.teamType);
 
     return {
       equipe_a: { 
         total: equipe_a_users.length, 
-        active: equipe_a_users.filter(u => u.is_active).length, 
+        active: equipe_a_users.filter(u => u.isActive).length, 
         users: equipe_a_users 
       },
       equipe_b: { 
         total: equipe_b_users.length, 
-        active: equipe_b_users.filter(u => u.is_active).length, 
+        active: equipe_b_users.filter(u => u.isActive).length, 
         users: equipe_b_users 
       },
       sem_equipe: { 
         total: sem_equipe_users.length, 
-        active: sem_equipe_users.filter(u => u.is_active).length, 
+        active: sem_equipe_users.filter(u => u.isActive).length, 
         users: sem_equipe_users 
       }
     };
