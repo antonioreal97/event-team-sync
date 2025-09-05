@@ -111,10 +111,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Demo login for development - create demo users
+      // Demo login for development - create demo users with valid UUIDs
       if (email === 'admin@frela.com' && password === 'admin123') {
         const demoUser: User = {
-          id: 'demo-admin-001',
+          id: '00000000-0000-0000-0000-000000000001', // Valid UUID format
           name: 'Administrador',
           email: 'admin@frela.com',
           role: 'gestor',
@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (email === 'freelancer@frela.com' && password === 'freelancer123') {
         const demoUser: User = {
-          id: 'demo-freelancer-001',
+          id: '00000000-0000-0000-0000-000000000002', // Valid UUID format
           name: 'Freelancer Demo',
           email: 'freelancer@frela.com',
           role: 'freelancer',
