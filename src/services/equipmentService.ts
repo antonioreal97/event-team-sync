@@ -1,11 +1,10 @@
 
 import { Equipment, EquipmentAllocation } from '@/types';
-import { equipments as mockEquipments, equipmentAllocations as mockEquipmentAllocations } from './mockData';
 
 // Local storage state management helpers
 const getEquipments = (): Equipment[] => {
   const stored = localStorage.getItem('event-team-sync-equipments');
-  return stored ? JSON.parse(stored) : [...mockEquipments];
+  return stored ? JSON.parse(stored) : [];
 };
 
 const saveEquipments = (equipments: Equipment[]): void => {
@@ -14,7 +13,7 @@ const saveEquipments = (equipments: Equipment[]): void => {
 
 const getEquipmentAllocations = (): EquipmentAllocation[] => {
   const stored = localStorage.getItem('event-team-sync-equipment-allocations');
-  return stored ? JSON.parse(stored) : [...mockEquipmentAllocations];
+  return stored ? JSON.parse(stored) : [];
 };
 
 const saveEquipmentAllocations = (allocations: EquipmentAllocation[]): void => {

@@ -86,8 +86,10 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     switch(event.status) {
       case 'planning':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Em Planejamento</Badge>;
-      case 'active':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Ativo</Badge>;
+      case 'confirmed':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Confirmado</Badge>;
+      case 'in_progress':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Em Progresso</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">Concluído</Badge>;
       case 'cancelled':

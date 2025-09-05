@@ -203,7 +203,7 @@ const Dashboard = () => {
                 <CardContent>
                   <div className="text-3xl font-bold text-primary mb-1">{events.length}</div>
                   <p className="text-xs text-muted-foreground">
-                    {events.filter(e => e.status === 'active').length} ativos
+                    {events.filter(e => e.status === 'confirmed').length} confirmados
                   </p>
                 </CardContent>
               </Card>
@@ -306,7 +306,7 @@ const Dashboard = () => {
                 <CardContent>
                   <div className="text-3xl font-bold text-primary mb-1">{filteredEvents.length}</div>
                   <p className="text-xs text-muted-foreground">
-                    {filteredEvents.filter(e => e.status === 'active').length} ativos
+                    {filteredEvents.filter(e => e.status === 'confirmed').length} confirmados
                   </p>
                 </CardContent>
               </Card>
