@@ -313,7 +313,7 @@ export const getActiveFreelancersByTeam = async (): Promise<{
 
     const equipe_a_users = mappedUsers.filter(u => u.teamType === 'equipe_a');
     const equipe_b_users = mappedUsers.filter(u => u.teamType === 'equipe_b');
-    const sem_equipe_users = mappedUsers.filter(u => u.teamType === 'sem_equipe' || !u.teamType);
+    const sem_equipe_users = mappedUsers.filter(u => u.teamType === 'sem_equipe' || u.teamType === null || u.teamType === undefined);
 
     return {
       equipe_a: { 

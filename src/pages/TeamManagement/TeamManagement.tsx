@@ -19,7 +19,7 @@ import {
   getUsersByTeam,
   assignUserToTeam,
   removeUserFromTeam,
-  getTeamStatistics
+  getActiveFreelancersByTeam
 } from '@/services/teamService';
 import { Users, Star, Award, UserPlus, UserMinus, Eye, EyeOff, Plus, Edit, Trash2, Shield } from 'lucide-react';
 import EditFreelancerDialog from '@/components/EditFreelancerDialog';
@@ -126,7 +126,7 @@ const TeamManagement = () => {
       ] = await Promise.all([
         getAllUsers(),
         getAllTeamAssignments(),
-        getTeamStatistics()
+        getActiveFreelancersByTeam()
       ]);
 
       // Buscar usuários por equipe
@@ -583,9 +583,9 @@ const TeamManagement = () => {
                 <Award className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{teamStats.equipe_a}</div>
+                <div className="text-2xl font-bold text-blue-600">{teamStats.equipe_a.active}</div>
                 <p className="text-xs text-muted-foreground">
-                  {teamStats.equipe_a} ativos • ⭐ 0.0
+                  {teamStats.equipe_a.active} ativos • ⭐ 0.0
                 </p>
               </CardContent>
             </Card>
@@ -596,9 +596,9 @@ const TeamManagement = () => {
                 <Users className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{teamStats.equipe_b}</div>
+                <div className="text-2xl font-bold text-green-600">{teamStats.equipe_b.active}</div>
                 <p className="text-xs text-muted-foreground">
-                  {teamStats.equipe_b} ativos • ⭐ 0.0
+                  {teamStats.equipe_b.active} ativos • ⭐ 0.0
                 </p>
               </CardContent>
             </Card>
@@ -609,7 +609,7 @@ const TeamManagement = () => {
                 <UserPlus className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-600">{teamStats.sem_equipe}</div>
+                <div className="text-2xl font-bold text-gray-600">{teamStats.sem_equipe.active}</div>
                 <p className="text-xs text-muted-foreground">
                   Aguardando atribuição
                 </p>
