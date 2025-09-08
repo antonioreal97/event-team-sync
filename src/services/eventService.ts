@@ -1,5 +1,6 @@
 import { Event } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { getAllNotifications, createNotification } from '@/services/notificationService';
 
 // Event service functions - Conectado ao Supabase
 export const getAllEvents = async (): Promise<Event[]> => {
@@ -335,6 +336,77 @@ export const updateEventStatus = async (eventId: string, status: string): Promis
     return mapDatabaseEventToEvent(data);
   } catch (error) {
     console.error('Erro ao atualizar status do evento:', error);
+    throw error;
+  }
+};
+
+// Cancelar evento e notificar interessados
+export const cancelEvent = async (eventId: string, cancelReason?: string): Promise<void> => {
+  try {
+    // 1. Atualizar status do evento para cancelado
+    const { error: updateError } = await supabase
+      .from('events')
+      .update({ status: 'cancelled' })
+      .eq('id', eventId);
+
+    if (updateError) throw updateError;
+
+    // 2. Buscar evento para obter informações
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('title, start_date')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) throw eventError;
+
+    // 3. Buscar usuários que demonstraram interesse no evento
+    const { data: interests, error: interestsError } = await supabase
+      .from('event_interests')
+      .select('user_id')
+      .eq('event_id', eventId)
+      .eq('status', 'interested');
+
+    if (interestsError) throw interestsError;
+
+    // 4. Criar notificações para todos os interessados
+    const interestedUserIds = interests?.map(interest => interest.user_id) || [];
+    
+    for (const userId of interestedUserIds) {
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: 'Evento Cancelado',
+          message: `O evento "${event.title}" que você demonstrou interesse foi cancelado.${cancelReason ? ` Motivo: ${cancelReason}` : ''}`,
+          type: 'warning',
+          related_event_id: eventId,
+          is_read: false
+        });
+
+      if (notificationError) {
+        console.error('Erro ao criar notificação para usuário:', userId, notificationError);
+      }
+    }
+
+    // 5. Criar notificação para o administrador (usuário atual)
+    const { error: adminNotificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        title: 'Evento Cancelado por Você',
+        message: `Você cancelou o evento "${event.title}". ${interestedUserIds.length} pessoas foram notificadas.`,
+        type: 'info',
+        related_event_id: eventId,
+        is_read: false
+      });
+
+    if (adminNotificationError) {
+      console.error('Erro ao criar notificação para administrador:', adminNotificationError);
+    }
+
+  } catch (error) {
+    console.error('Erro ao cancelar evento:', error);
     throw error;
   }
 };

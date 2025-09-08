@@ -10,15 +10,16 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event, AudioVisualRole, EventType, DailySchedule } from '@/types';
-import { getEventById, updateEvent } from '@/services/eventService';
+import { getEventById, updateEvent, cancelEvent } from '@/services/eventService';
 import { 
   calculateDailyRate, 
   calculateTotalPayment,
   calculateTotalDays,
   isMultiDayEvent
 } from '@/services/pricingService';
-import { Award, Users, Calendar, MapPin, DollarSign, Clock, Info, Plus, Trash2, FileText, Settings } from 'lucide-react';
+import { Award, Users, Calendar, MapPin, DollarSign, Clock, Info, Plus, Trash2, FileText, Settings, X, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const EditEvent = () => {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ const EditEvent = () => {
   const [pricingSummary, setPricingSummary] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -334,6 +336,31 @@ const EditEvent = () => {
     return workingDays;
   };
 
+  const handleCancelEvent = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      await cancelEvent(id, cancelReason || undefined);
+      
+      toast({
+        title: 'Evento Cancelado',
+        description: 'O evento foi cancelado e os interessados foram notificados.',
+      });
+      
+      navigate('/events');
+    } catch (error) {
+      console.error('Erro ao cancelar evento:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao cancelar evento',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     try {
       if (!dateString) return 'Data não informada';
@@ -395,12 +422,60 @@ const EditEvent = () => {
             <p className="text-gray-600">Atualize as informações do evento e programação</p>
           </div>
           
-          <Button
-            variant="outline"
-            onClick={() => navigate('/events')}
-          >
-            Voltar para Eventos
-          </Button>
+          <div className="flex items-center space-x-2">
+            {formData.status === 'planning' && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    disabled={loading}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar Evento
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center space-x-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      <span>Cancelar Evento</span>
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá cancelar o evento e notificar todos os freelancers que demonstraram interesse. Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cancelReason">Motivo do cancelamento (opcional)</Label>
+                    <Textarea
+                      id="cancelReason"
+                      placeholder="Explique o motivo do cancelamento..."
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Manter Evento</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleCancelEvent}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      Confirmar Cancelamento
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            
+            <Button
+              variant="outline"
+              onClick={() => navigate('/events')}
+            >
+              Voltar para Eventos
+            </Button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
