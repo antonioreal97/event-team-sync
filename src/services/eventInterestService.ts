@@ -1,4 +1,4 @@
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
 // Interface para confirmação de interesse
 export interface EventInterestConfirmation {
@@ -16,33 +16,69 @@ export interface EventInterestConfirmation {
 // Função para confirmar interesse em um evento
 export const confirmEventInterest = async (eventId: string): Promise<EventInterestConfirmation> => {
   try {
-    const response = await fetch(buildApiUrl('/events/:id/confirm-interest', { id: eventId }), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Erro na resposta da API:', errorData);
-      
-      // Tratar erros específicos
-      if (response.status === 400 && errorData.error?.includes('já confirmou interesse')) {
-        throw new Error('Você já confirmou interesse neste evento');
-      }
-      
-      if (response.status === 403) {
-        throw new Error('Acesso negado. Apenas freelancers podem confirmar interesse');
-      }
-      
-      if (response.status === 404) {
-        throw new Error('Evento não encontrado');
-      }
-      
-      throw new Error(errorData.error || `Erro ao confirmar interesse no evento (${response.status})`);
+    // Verificar se já existe interesse para este evento e usuário
+    const { data: existingInterest, error: checkError } = await supabase
+      .from('event_interests')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingInterest) {
+      throw new Error('Você já confirmou interesse neste evento');
     }
 
-    const data = await response.json();
-    return data.confirmation;
+    // Criar novo interesse
+    const { data, error } = await supabase
+      .from('event_interests')
+      .insert({
+        event_id: eventId,
+        user_id: user.id,
+        status: 'interested'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Buscar informações do evento para notificação
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('title, created_by')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) throw eventError;
+
+    // Buscar informações do usuário
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', user.id)
+      .single();
+
+    if (userError) throw userError;
+
+    // Criar notificação para o gestor do evento
+    if (event.created_by) {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: event.created_by,
+          title: 'Novo Interesse em Evento',
+          message: `${userData.name} demonstrou interesse no evento "${event.title}".`,
+          type: 'update',
+          related_event_id: eventId,
+          is_read: false
+        });
+    }
+
+    return mapDatabaseInterestToInterest(data);
   } catch (error) {
     console.error('Erro ao confirmar interesse no evento:', error);
     throw error;
@@ -52,34 +88,21 @@ export const confirmEventInterest = async (eventId: string): Promise<EventIntere
 // Função para verificar se o usuário já confirmou interesse
 export const checkEventInterestStatus = async (eventId: string): Promise<EventInterestConfirmation | null> => {
   try {
-    const response = await fetch(buildApiUrl('/events/:id/interest-status', { id: eventId }), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-    if (!response.ok) {
-      console.error(`Erro ao verificar status de interesse: ${response.status}`);
-      // Se for erro de autenticação, retornar null para evitar loops
-      if (response.status === 401 || response.status === 403) {
-        return null;
-      }
-      throw new Error(`Erro ao verificar status de interesse: ${response.status}`);
-    }
+    const { data, error } = await supabase
+      .from('event_interests')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    const data = await response.json();
-    
-    // Se não há interesse confirmado, retornar null
-    if (!data.hasInterest) {
-      console.log('ℹ️ Usuário não confirmou interesse ainda');
-      return null;
-    }
-    
-    // Se há interesse, retornar a confirmação
-    console.log('✅ Status de interesse encontrado:', data.confirmation);
-    return data.confirmation;
+    if (error) throw error;
+
+    return data ? mapDatabaseInterestToInterest(data) : null;
   } catch (error) {
     console.error('Erro ao verificar status de interesse:', error);
-    // Em caso de erro, retornar null para evitar que o botão seja exibido
     return null;
   }
 };
@@ -87,17 +110,48 @@ export const checkEventInterestStatus = async (eventId: string): Promise<EventIn
 // Função para cancelar confirmação de interesse
 export const cancelEventInterest = async (eventId: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/events/:id/cancel-interest', { id: eventId }), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao cancelar interesse no evento');
+    // Verificar se o usuário está alocado para este evento
+    const { data: allocation, error: allocError } = await supabase
+      .from('team_allocations')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (allocError) throw allocError;
+
+    if (allocation) {
+      throw new Error('Não é possível cancelar interesse. Você já está alocado para este evento.');
     }
+
+    // Remover interesse
+    const { error } = await supabase
+      .from('event_interests')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao cancelar interesse no evento:', error);
     throw error;
   }
+};
+
+// Mapper function
+const mapDatabaseInterestToInterest = (dbInterest: any): EventInterestConfirmation => {
+  return {
+    id: dbInterest.id,
+    eventId: dbInterest.event_id,
+    userId: dbInterest.user_id,
+    status: dbInterest.status || 'pending',
+    confirmedAt: dbInterest.created_at,
+    rejectedAt: null,
+    notes: '',
+    createdAt: dbInterest.created_at,
+    updatedAt: dbInterest.updated_at,
+  };
 };

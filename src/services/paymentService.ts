@@ -1,12 +1,17 @@
 import { PaymentRecord, TeamAllocation } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
-// Payment service functions - Conectado ao PostgreSQL
+// Payment service functions - Conectado ao Supabase
 export const getAllPaymentRecords = async (): Promise<PaymentRecord[]> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos array vazio
-    return [];
+    const { data, error } = await supabase
+      .from('payment_records')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(mapDatabasePaymentToPayment);
   } catch (error) {
     console.error('Erro ao buscar registros de pagamento:', error);
     return [];
@@ -15,9 +20,15 @@ export const getAllPaymentRecords = async (): Promise<PaymentRecord[]> => {
 
 export const getPaymentRecordById = async (id: string): Promise<PaymentRecord | undefined> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos undefined
-    return undefined;
+    const { data, error } = await supabase
+      .from('payment_records')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    return data ? mapDatabasePaymentToPayment(data) : undefined;
   } catch (error) {
     console.error('Erro ao buscar registro de pagamento:', error);
     return undefined;
@@ -26,9 +37,21 @@ export const getPaymentRecordById = async (id: string): Promise<PaymentRecord | 
 
 export const createPaymentRecord = async (paymentData: Omit<PaymentRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<PaymentRecord> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos um objeto vazio
-    return {} as PaymentRecord;
+    const { data, error } = await supabase
+      .from('payment_records')
+      .insert({
+        team_allocation_id: paymentData.allocationId,
+        amount: paymentData.amount,
+        status: paymentData.status,
+        payment_date: paymentData.paymentDate,
+        notes: paymentData.notes
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return mapDatabasePaymentToPayment(data);
   } catch (error) {
     console.error('Erro ao criar registro de pagamento:', error);
     throw error;
@@ -37,9 +60,21 @@ export const createPaymentRecord = async (paymentData: Omit<PaymentRecord, 'id' 
 
 export const updatePaymentRecord = async (id: string, paymentData: Partial<PaymentRecord>): Promise<PaymentRecord> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos um objeto vazio
-    return {} as PaymentRecord;
+    const { data, error } = await supabase
+      .from('payment_records')
+      .update({
+        amount: paymentData.amount,
+        status: paymentData.status,
+        payment_date: paymentData.paymentDate,
+        notes: paymentData.notes
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return mapDatabasePaymentToPayment(data);
   } catch (error) {
     console.error('Erro ao atualizar registro de pagamento:', error);
     throw error;
@@ -48,7 +83,12 @@ export const updatePaymentRecord = async (id: string, paymentData: Partial<Payme
 
 export const deletePaymentRecord = async (id: string): Promise<void> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
+    const { error } = await supabase
+      .from('payment_records')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao deletar registro de pagamento:', error);
     throw error;
@@ -83,16 +123,19 @@ export const calculateCancellationRefund = (
 // Payment confirmation functions
 export const confirmDailyPayment = async (allocationId: string, date: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/teams/payment/:allocationId/confirm', { allocationId }), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ date }),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from('attendance_records')
+      .update({ 
+        payment_confirmed: true,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: user?.id
+      })
+      .eq('team_allocation_id', allocationId)
+      .eq('date', date);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao confirmar pagamento diário');
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao confirmar pagamento diário:', error);
     throw error;
@@ -219,14 +262,12 @@ export const validatePaymentDate = (paymentDate: Date, eventDate: Date): boolean
 
 export const approvePayment = async (paymentId: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/payments/:id/approve', { id: paymentId }), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-    });
+    const { error } = await supabase
+      .from('payment_records')
+      .update({ status: 'approved' })
+      .eq('id', paymentId);
 
-    if (!response.ok) {
-      throw new Error(`Erro ao aprovar pagamento: ${response.status}`);
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao aprovar pagamento:', error);
     throw error;
@@ -235,15 +276,16 @@ export const approvePayment = async (paymentId: string): Promise<void> => {
 
 export const markPaymentAsPaid = async (paymentId: string, paymentMethod: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/payments/:id/mark-paid', { id: paymentId }), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ paymentMethod }),
-    });
+    const { error } = await supabase
+      .from('payment_records')
+      .update({ 
+        status: 'paid',
+        payment_method: paymentMethod,
+        paid_at: new Date().toISOString()
+      })
+      .eq('id', paymentId);
 
-    if (!response.ok) {
-      throw new Error(`Erro ao marcar pagamento como pago: ${response.status}`);
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao marcar pagamento como pago:', error);
     throw error;
@@ -252,14 +294,12 @@ export const markPaymentAsPaid = async (paymentId: string, paymentMethod: string
 
 export const cancelPayment = async (paymentId: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/payments/:id/cancel', { id: paymentId }), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-    });
+    const { error } = await supabase
+      .from('payment_records')
+      .update({ status: 'cancelled' })
+      .eq('id', paymentId);
 
-    if (!response.ok) {
-      throw new Error(`Erro ao cancelar pagamento: ${response.status}`);
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao cancelar pagamento:', error);
     throw error;
@@ -268,19 +308,56 @@ export const cancelPayment = async (paymentId: string): Promise<void> => {
 
 export const generateEventPaymentReport = async (eventId: string): Promise<any> => {
   try {
-    const response = await fetch(buildApiUrl('/payments/event/:eventId/report', { eventId }), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data: allocations, error: allocError } = await supabase
+      .from('team_allocations')
+      .select(`
+        id,
+        user_id,
+        assigned_role,
+        daily_rate,
+        total_days,
+        total_payment,
+        status,
+        user:users(id, name, email)
+      `)
+      .eq('event_id', eventId);
 
-    if (!response.ok) {
-      throw new Error(`Erro ao marcar pagamento como pago: ${response.status}`);
-    }
+    if (allocError) throw allocError;
 
-    const data = await response.json();
-    return data.report;
+    const { data: payments, error: paymentError } = await supabase
+      .from('payment_records')
+      .select('*')
+      .in('team_allocation_id', (allocations || []).map(a => a.id));
+
+    if (paymentError) throw paymentError;
+
+    return {
+      eventId,
+      allocations: allocations || [],
+      payments: (payments || []).map(mapDatabasePaymentToPayment),
+      totalPayments: (payments || []).reduce((sum, p) => sum + p.amount, 0),
+      totalAllocations: (allocations || []).length
+    };
   } catch (error) {
     console.error('Erro ao gerar relatório de pagamento:', error);
     throw error;
   }
+};
+
+// Mapper function to convert database payment to frontend payment
+const mapDatabasePaymentToPayment = (dbPayment: any): PaymentRecord => {
+  return {
+    id: dbPayment.id,
+    userId: '', // Will need to be fetched from team allocation
+    eventId: '', // Will need to be fetched from team allocation
+    allocationId: dbPayment.team_allocation_id,
+    amount: dbPayment.amount,
+    status: dbPayment.status || 'pending',
+    paymentDate: dbPayment.payment_date,
+    confirmedBy: dbPayment.confirmed_by,
+    confirmedAt: dbPayment.confirmed_at,
+    notes: dbPayment.notes,
+    createdAt: dbPayment.created_at,
+    updatedAt: dbPayment.updated_at,
+  };
 };

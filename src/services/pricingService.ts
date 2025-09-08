@@ -1,5 +1,5 @@
 import { EventType, TeamType, Event } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
 // Configuração de preços por tipo de evento e equipe
 const PRICING_CONFIG = {

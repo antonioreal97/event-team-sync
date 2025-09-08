@@ -1,5 +1,5 @@
 import { Event, User, EventForFreelancer } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
 // Event visibility service functions - Conectado ao PostgreSQL
 export const filterEventForUser = async (event: Event, user: User): Promise<EventForFreelancer | null> => {
