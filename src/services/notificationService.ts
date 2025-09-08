@@ -1,40 +1,51 @@
 
 import { Notification } from '@/types';
-import { buildApiUrl, getAuthHeaders } from '@/config/api';
+import { supabase } from '@/integrations/supabase/client';
 
-// Notification service functions - Conectado ao PostgreSQL
+// Notification service functions - Conectado ao Supabase
 export const getAllNotifications = async (): Promise<Notification[]> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications'), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar notificações: ${response.status}`);
-    }
+    if (error) throw error;
 
-    const data = await response.json();
-    return data.notifications || [];
+    return (data || []).map(mapDatabaseNotificationToNotification);
   } catch (error) {
     console.error('Erro ao buscar notificações:', error);
     return [];
   }
 };
 
+// Mapper function to convert database notification to frontend notification
+const mapDatabaseNotificationToNotification = (dbNotification: any): Notification => {
+  return {
+    id: dbNotification.id,
+    userId: dbNotification.user_id,
+    title: dbNotification.title,
+    message: dbNotification.message,
+    type: 'update', // Usar 'update' como tipo padrão
+    read: dbNotification.is_read || false,
+    relatedEventId: dbNotification.related_event_id,
+    createdAt: dbNotification.created_at,
+    priority: 'medium', // Default priority
+    actionRequired: false, // Default action required
+  };
+};
+
 export const getNotificationById = async (id: string): Promise<Notification | undefined> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications/:id', { id }), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar notificação: ${response.status}`);
-    }
+    if (error) throw error;
 
-    const data = await response.json();
-    return data.notification;
+    return data ? mapDatabaseNotificationToNotification(data) : undefined;
   } catch (error) {
     console.error('Erro ao buscar notificação:', error);
     return undefined;
@@ -43,19 +54,22 @@ export const getNotificationById = async (id: string): Promise<Notification | un
 
 export const createNotification = async (notificationData: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(notificationData),
-    });
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: notificationData.userId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type,
+        related_event_id: notificationData.relatedEventId,
+        is_read: false
+      })
+      .select()
+      .single();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao criar notificação');
-    }
+    if (error) throw error;
 
-    const data = await response.json();
-    return data.notification;
+    return mapDatabaseNotificationToNotification(data);
   } catch (error) {
     console.error('Erro ao criar notificação:', error);
     throw error;
@@ -64,15 +78,15 @@ export const createNotification = async (notificationData: Omit<Notification, 'i
 
 export const markNotificationAsRead = async (id: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications/:id/read', { id }), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-    });
+    const { error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true, 
+        read_at: new Date().toISOString() 
+      })
+      .eq('id', id);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao marcar notificação como lida');
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao marcar notificação como lida:', error);
     throw error;
@@ -81,15 +95,19 @@ export const markNotificationAsRead = async (id: string): Promise<void> => {
 
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications/read-all'), {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao marcar todas as notificações como lidas');
-    }
+    const { error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true, 
+        read_at: new Date().toISOString() 
+      })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao marcar todas as notificações como lidas:', error);
     throw error;
@@ -98,15 +116,12 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 
 export const deleteNotification = async (id: string): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications/:id', { id }), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao deletar notificação');
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao deletar notificação:', error);
     throw error;
@@ -179,15 +194,15 @@ export const getNotificationStatistics = async (): Promise<{
 // Bulk operations
 export const deleteAllNotifications = async (): Promise<void> => {
   try {
-    const response = await fetch(buildApiUrl('/notifications'), {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Erro ao deletar todas as notificações');
-    }
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Erro ao deletar todas as notificações:', error);
     throw error;

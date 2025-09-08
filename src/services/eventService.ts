@@ -379,7 +379,7 @@ export const cancelEvent = async (eventId: string, cancelReason?: string): Promi
           user_id: userId,
           title: 'Evento Cancelado',
           message: `O evento "${event.title}" que você demonstrou interesse foi cancelado.${cancelReason ? ` Motivo: ${cancelReason}` : ''}`,
-          type: 'warning',
+          type: 'update',
           related_event_id: eventId,
           is_read: false
         });
@@ -396,7 +396,7 @@ export const cancelEvent = async (eventId: string, cancelReason?: string): Promi
         user_id: (await supabase.auth.getUser()).data.user?.id,
         title: 'Evento Cancelado por Você',
         message: `Você cancelou o evento "${event.title}". ${interestedUserIds.length} pessoas foram notificadas.`,
-        type: 'info',
+        type: 'update',
         related_event_id: eventId,
         is_read: false
       });
