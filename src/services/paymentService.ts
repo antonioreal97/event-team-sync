@@ -354,8 +354,6 @@ const mapDatabasePaymentToPayment = (dbPayment: any): PaymentRecord => {
     amount: dbPayment.amount,
     status: dbPayment.status || 'pending',
     paymentDate: dbPayment.payment_date,
-    confirmedBy: dbPayment.confirmed_by,
-    confirmedAt: dbPayment.confirmed_at,
     notes: dbPayment.notes,
     createdAt: dbPayment.created_at,
     updatedAt: dbPayment.updated_at,
