@@ -1,5 +1,5 @@
 
-export type UserRole = 'gestor' | 'freelancer';
+export type UserRole = 'gestor' | 'freelancer' | 'lider_freelancer';
 
 // Sistema de equipes (apenas o gestor sabe quem está em cada uma)
 export type TeamType = 'equipe_a' | 'equipe_b' | 'sem_equipe';

@@ -40,7 +40,7 @@ const SidebarMenuButton: React.FC<SidebarMenuButtonProps> = ({ children, asChild
 };
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, isGestor, isFreelancer } = useAuth();
+  const { user, logout, isGestor, isFreelancer, isLiderFreelancer } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -193,6 +193,45 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <div className="flex items-center">
                       <CheckCircle className="w-5 h-5 mr-3" />
                       <span className="font-medium">Interesse em Eventos</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={() => navigate('/team-escalation')}
+                    isActive={isActiveRoute('/team-escalation')}
+                  >
+                    <div className="flex items-center">
+                      <Users className="w-5 h-5 mr-3" />
+                      <span className="font-medium">Escalação de Equipes</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+
+            {/* Menu específico para Líder Freelancer */}
+            {isLiderFreelancer && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={() => navigate('/team-escalation')}
+                    isActive={isActiveRoute('/team-escalation')}
+                  >
+                    <div className="flex items-center">
+                      <Users className="w-5 h-5 mr-3" />
+                      <span className="font-medium">Escalação de Equipes</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={() => navigate('/profile')}
+                    isActive={isActiveRoute('/profile')}
+                  >
+                    <div className="flex items-center">
+                      <User className="w-5 h-5 mr-3" />
+                      <span className="font-medium">Meu Perfil</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

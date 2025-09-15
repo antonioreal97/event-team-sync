@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => void;
   isGestor: boolean;
   isFreelancer: boolean;
+  isLiderFreelancer: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           id: profile.id,
           name: profile.name,
           email: profile.email,
-          role: profile.role as 'gestor' | 'freelancer',
+          role: profile.role as 'gestor' | 'freelancer' | 'lider_freelancer',
           avatar: profile.avatar,
           isActive: profile.is_active,
           createdAt: profile.created_at,
@@ -186,6 +187,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
+      if (email === 'lider@frela.com' && password === 'lider123') {
+        const demoUser: User = {
+          id: '00000000-0000-0000-0000-000000000003', // Valid UUID format
+          name: 'Líder Freelancer',
+          email: 'lider@frela.com',
+          role: 'lider_freelancer',
+          avatar: null,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          teamType: 'equipe_a',
+          phone: '(11) 98888-8888',
+          address: 'Rua Líder, 456',
+          city: 'São Paulo',
+          state: 'SP',
+          cpf: '111.111.111-11',
+          hourlyRate: 60,
+          dailyRate: 500,
+          experienceLevel: 'avancado',
+          audioVisualRoles: ['director', 'producer'],
+          bio: 'Líder de equipe especializado em gestão de projetos audiovisuais',
+          portfolio: null,
+          linkedin: null,
+          instagram: null,
+          website: null,
+          previousExperience: null,
+          certifications: [],
+          equipment: [],
+          languages: ['Português', 'Inglês', 'Espanhol'],
+          totalEventsAttended: 15,
+          totalEarnings: 7500,
+          averageRating: 4.8,
+        };
+        setUser(demoUser);
+        return;
+      }
+
       // For production, use Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -212,6 +250,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isGestor = user?.role === 'gestor';
   const isFreelancer = user?.role === 'freelancer';
+  const isLiderFreelancer = user?.role === 'lider_freelancer';
 
   return (
     <AuthContext.Provider value={{
@@ -221,6 +260,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       isGestor,
       isFreelancer,
+      isLiderFreelancer,
     }}>
       {children}
     </AuthContext.Provider>
