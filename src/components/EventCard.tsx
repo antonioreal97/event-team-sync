@@ -1,19 +1,34 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Event } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { deleteEvent } from '@/services/eventService';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Trash2 } from 'lucide-react';
 
 interface EventCardProps {
   event: Event;
+  onEventDeleted?: (eventId: string) => void;
 }
 
-const EventCard: React.FC<EventCardProps> = ({ event }) => {
+const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   const navigate = useNavigate();
   const { isGestor } = useAuth();
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Log temporário para debug
   console.log('🎯 EVENTCARD RECEBEU:', {
@@ -144,6 +159,36 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     }
   };
 
+  const handleDeleteEvent = async () => {
+    if (!isGestor || event.status !== 'cancelled') return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteEvent(event.id);
+      
+      toast({
+        title: 'Evento excluído',
+        description: `O evento "${event.title}" foi excluído com sucesso.`,
+      });
+      
+      // Notificar o componente pai para atualizar a lista
+      if (onEventDeleted) {
+        onEventDeleted(event.id);
+      }
+      
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error('Erro ao excluir evento:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o evento. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Card className="card-hover">
       <CardHeader className="pb-2">
@@ -197,7 +242,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
           >
             Ver Detalhes
           </Button>
-          {isGestor && (
+          {isGestor && event.status !== 'cancelled' && (
             <Button 
               variant="default" 
               className="flex-1"
@@ -206,8 +251,46 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
               Editar
             </Button>
           )}
+          {isGestor && event.status === 'cancelled' && (
+            <Button 
+              variant="destructive" 
+              className="flex-1"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir
+            </Button>
+          )}
         </div>
       </CardFooter>
+
+      {/* Dialog de confirmação de exclusão */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir o evento "{event.title}"? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteEvent}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir Evento'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

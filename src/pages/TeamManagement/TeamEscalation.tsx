@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -250,31 +251,56 @@ export const TeamEscalation: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">Carregando eventos...</div>
-      </div>
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <img 
+                src="/logo-s4u.png" 
+                alt="Equipe S4U Logo" 
+                className="h-14 w-14 object-contain animate-pulse"
+              />
+            </div>
+            <p className="text-foreground">Carregando escalação...</p>
+          </div>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Escalação de Equipes</h1>
-        <p className="text-muted-foreground">
-          Visualize os interesses demonstrados e monte as equipes para cada evento
-        </p>
-      </div>
+    <AppLayout>
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 flex items-center justify-center">
+              <img 
+                src="/logo-s4u.png" 
+                alt="Equipe S4U Logo" 
+                className="h-10 w-10 object-contain"
+              />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold font-heading bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Escalação de Equipes
+              </h1>
+              <p className="text-foreground/70 text-lg">
+                Visualize os interesses e monte as equipes para cada evento
+              </p>
+            </div>
+          </div>
+        </div>
 
-      {eventsWithInterests.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              Nenhum evento com interesses demonstrados encontrado.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+        {eventsWithInterests.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Nenhum evento com interesses demonstrados encontrado.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
         <Tabs value={selectedEvent || eventsWithInterests[0]?.event.id} onValueChange={setSelectedEvent}>
           <TabsList className="grid w-full grid-cols-1 lg:grid-cols-3 mb-6">
             {eventsWithInterests.map(({ event }) => (
@@ -397,7 +423,8 @@ export const TeamEscalation: React.FC = () => {
             </TabsContent>
           ))}
         </Tabs>
-      )}
-    </div>
+        )}
+      </div>
+    </AppLayout>
   );
 };

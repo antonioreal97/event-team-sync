@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Calendar, Users, Bell, Settings, LogOut, User, DollarSign, Award, CheckCircle } from 'lucide-react';
+import { Menu, X, Home, Calendar, Users, Bell, Settings, LogOut, User, DollarSign, Award, CheckCircle, Package } from 'lucide-react';
 
 interface SidebarMenuItemProps {
   children: React.ReactNode;
@@ -152,6 +152,17 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {/* Menu específico para Gestor */}
             {isGestor && (
               <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    onClick={() => navigate('/equipment')}
+                    isActive={isActiveRoute('/equipment')}
+                  >
+                    <div className="flex items-center">
+                      <Package className="w-5 h-5 mr-3" />
+                      <span className="font-medium">Gestão de Equipamentos</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton 
                     onClick={() => navigate('/team-management')}

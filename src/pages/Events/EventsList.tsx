@@ -31,6 +31,12 @@ const EventsList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const handleEventDeleted = (eventId: string) => {
+    // Remover o evento da lista local
+    setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+    setFilteredEvents(prevFiltered => prevFiltered.filter(event => event.id !== eventId));
+  };
+
   useEffect(() => {
     const fetchEvents = async () => {
       if (!user) return;
@@ -142,7 +148,11 @@ const EventsList = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredEvents.map(event => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard 
+                    key={event.id} 
+                    event={event} 
+                    onEventDeleted={handleEventDeleted}
+                  />
                 ))}
               </div>
             )}

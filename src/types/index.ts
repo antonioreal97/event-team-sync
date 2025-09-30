@@ -146,7 +146,8 @@ export interface Event {
   
   // Alocações de equipe
   teamAllocations?: TeamAllocation[];
-  equipmentAllocations?: any[];
+  equipmentAllocations?: any[]; // Manter compatibilidade
+  equipmentReservations?: EquipmentItemReservation[]; // Novo sistema
 }
 
 // Interface para freelancers verem apenas informações relevantes para sua equipe
@@ -245,20 +246,119 @@ export interface AttendanceList {
   totalPending: number;
 }
 
+// Categorias de equipamentos
+export interface EquipmentCategory {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Equipamentos (tipos/modelos)
 export interface Equipment {
   id: string;
   name: string;
   totalQuantity: number;
   description?: string;
-  // Novos campos para audiovisual
-  category: 'camera' | 'audio' | 'lighting' | 'streaming' | 'accessories' | 'power';
+  categoryId?: string;
+  category?: string; // Campo legado
+  categoryName?: string;
+  categoryDescription?: string;
   hourlyRate?: number;
   dailyRate?: number;
-  condition: 'excellent' | 'good' | 'fair' | 'needs_repair';
+  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
   location?: string;
   lastMaintenance?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
+// Itens individuais de equipamento (com controle por patrimônio)
+export interface EquipmentItem {
+  id: string;
+  equipmentId: string;
+  assetTag: string;
+  serialNumber?: string;
+  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+  status: 'in_service' | 'maintenance' | 'retired' | 'lost';
+  location?: string;
+  notes?: string;
+  lastMaintenance?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Dados relacionados
+  equipmentName?: string;
+  equipmentDescription?: string;
+  categoryName?: string;
+  isAvailable?: boolean;
+}
+
+// Reservas de itens para eventos
+export interface EquipmentItemReservation {
+  id: string;
+  eventId: string;
+  equipmentItemId: string;
+  status: 'reserved' | 'checked_out' | 'returned' | 'cancelled';
+  
+  // Dados de reserva
+  reservedBy?: string;
+  reservedAt?: string;
+  reservedByName?: string;
+  
+  // Dados de checkout (retirada)
+  checkedOutBy?: string;
+  checkedOutAt?: string;
+  checkedOutByName?: string;
+  conditionOut?: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+  
+  // Dados de checkin (devolução)
+  checkedInBy?: string;
+  checkedInAt?: string;
+  checkedInByName?: string;
+  conditionIn?: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+  postEventStatus?: 'ok' | 'maintenance' | 'replace' | 'lost' | 'damaged';
+  
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Dados relacionados
+  assetTag?: string;
+  serialNumber?: string;
+  itemCondition?: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+  itemStatus?: 'in_service' | 'maintenance' | 'retired' | 'lost';
+  equipmentName?: string;
+  equipmentDescription?: string;
+  categoryName?: string;
+}
+
+// Ordens de manutenção
+export interface MaintenanceOrder {
+  id: string;
+  equipmentItemId: string;
+  eventId?: string;
+  openedBy: string;
+  status: 'open' | 'in_progress' | 'completed' | 'discarded';
+  requestedAction: 'maintenance' | 'replace';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Dados relacionados
+  assetTag?: string;
+  serialNumber?: string;
+  itemCondition?: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+  itemStatus?: 'in_service' | 'maintenance' | 'retired' | 'lost';
+  equipmentName?: string;
+  categoryName?: string;
+  openedByName?: string;
+  eventTitle?: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
+}
+
+// Manter compatibilidade com sistema antigo
 export interface EquipmentAllocation {
   id: string;
   eventId: string;

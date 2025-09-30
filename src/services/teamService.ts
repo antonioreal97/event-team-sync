@@ -16,20 +16,42 @@ export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
 
 export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('users')
       .select(`
         *,
-        freelancer_profile:freelancer_profiles!inner(*)
+        freelancer_profile:freelancer_profiles(*)
       `)
-      .eq('role', 'freelancer')
-      .eq('freelancer_profiles.team_type', teamType);
+      .eq('role', 'freelancer');
 
-    if (error) {
-      throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
+    // Para usuários sem equipe, precisamos incluir aqueles que não têm perfil ou têm team_type null/undefined
+    if (teamType === 'sem_equipe') {
+      const { data, error } = await query;
+      
+      if (error) {
+        throw new Error(`Erro ao buscar usuários sem equipe: ${error.message}`);
+      }
+
+      // Filtrar usuários que não têm perfil ou têm team_type null/undefined/sem_equipe
+      const filteredData = (data || []).filter(user => {
+        const freelancerProfile = user.freelancer_profile?.[0];
+        return !freelancerProfile || 
+               !freelancerProfile.team_type || 
+               freelancerProfile.team_type === 'sem_equipe';
+      });
+
+      return filteredData.map(mapSupabaseUserToUser);
+    } else {
+      // Para outras equipes, usar inner join
+      const { data, error } = await query
+        .eq('freelancer_profiles.team_type', teamType);
+
+      if (error) {
+        throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
+      }
+
+      return (data || []).map(mapSupabaseUserToUser);
     }
-
-    return (data || []).map(mapSupabaseUserToUser);
   } catch (error) {
     console.error('Erro ao buscar usuários da equipe:', error);
     return [];
@@ -263,57 +285,12 @@ export const getActiveFreelancersByTeam = async (): Promise<{
   sem_equipe: { total: number; active: number; users: User[] };
 }> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles(*)
-      `)
-      .eq('role', 'freelancer');
-
-    if (error) {
-      throw new Error(`Erro ao buscar freelancers ativos: ${error.message}`);
-    }
-
-    const mappedUsers = (data || []).map(user => {
-      const freelancerProfile = user.freelancer_profile?.[0];
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as 'gestor' | 'freelancer',
-        avatar: user.avatar,
-        isActive: user.is_active,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-        teamType: freelancerProfile?.team_type as 'equipe_a' | 'equipe_b' | 'sem_equipe' | undefined,
-        phone: freelancerProfile?.phone,
-        address: freelancerProfile?.address,
-        city: freelancerProfile?.city,
-        state: freelancerProfile?.state,
-        cpf: freelancerProfile?.cpf,
-        hourlyRate: freelancerProfile?.hourly_rate,
-        dailyRate: freelancerProfile?.daily_rate,
-        experienceLevel: (freelancerProfile?.experience_level as 'iniciante' | 'intermediario' | 'avancado' | 'expert') || 'iniciante',
-        audioVisualRoles: (freelancerProfile?.audio_visual_roles as ('camera' | 'audio' | 'lighting' | 'director' | 'producer' | 'assistant' | 'technician' | 'streaming' | 'editing')[]) || [],
-        bio: freelancerProfile?.bio,
-        portfolio: freelancerProfile?.portfolio,
-        linkedin: freelancerProfile?.linkedin,
-        instagram: freelancerProfile?.instagram,
-        website: freelancerProfile?.website,
-        previousExperience: freelancerProfile?.previous_experience,
-        certifications: freelancerProfile?.certifications || [],
-        equipment: freelancerProfile?.equipment || [],
-        languages: freelancerProfile?.languages || [],
-        totalEventsAttended: freelancerProfile?.total_events_attended || 0,
-        totalEarnings: freelancerProfile?.total_earnings || 0,
-        averageRating: freelancerProfile?.average_rating,
-      };
-    });
-
-    const equipe_a_users = mappedUsers.filter(u => u.teamType === 'equipe_a');
-    const equipe_b_users = mappedUsers.filter(u => u.teamType === 'equipe_b');
-    const sem_equipe_users = mappedUsers.filter(u => u.teamType === 'sem_equipe' || u.teamType === null || u.teamType === undefined);
+    // Usar as funções getUsersByTeam para garantir consistência
+    const [equipe_a_users, equipe_b_users, sem_equipe_users] = await Promise.all([
+      getUsersByTeam('equipe_a'),
+      getUsersByTeam('equipe_b'),
+      getUsersByTeam('sem_equipe')
+    ]);
 
     return {
       equipe_a: { 

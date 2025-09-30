@@ -8,8 +8,13 @@ const router = Router();
 // Listar equipamentos
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(`
-    SELECT * FROM equipments 
-    ORDER BY category, name
+    SELECT 
+      e.*,
+      ec.name as category_name,
+      ec.description as category_description
+    FROM equipments e
+    LEFT JOIN equipment_categories ec ON e.category_id = ec.id
+    ORDER BY COALESCE(ec.name, e.category), e.name
   `);
 
   res.json({
@@ -21,10 +26,15 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await pool.query(
-    'SELECT * FROM equipments WHERE id = $1',
-    [id]
-  );
+  const result = await pool.query(`
+    SELECT 
+      e.*,
+      ec.name as category_name,
+      ec.description as category_description
+    FROM equipments e
+    LEFT JOIN equipment_categories ec ON e.category_id = ec.id
+    WHERE e.id = $1
+  `, [id]);
 
   if (result.rows.length === 0) {
     throw createError('Equipamento não encontrado', 404);
@@ -41,7 +51,8 @@ router.post('/', requireGestor, asyncHandler(async (req: Request, res: Response)
     name,
     totalQuantity,
     description,
-    category,
+    categoryId,
+    category, // Manter compatibilidade com campo legado
     hourlyRate,
     dailyRate,
     condition,
@@ -49,18 +60,30 @@ router.post('/', requireGestor, asyncHandler(async (req: Request, res: Response)
     lastMaintenance
   } = req.body;
 
-  if (!name || !totalQuantity || !category) {
-    throw createError('Nome, quantidade total e categoria são obrigatórios', 400);
+  if (!name || !totalQuantity) {
+    throw createError('Nome e quantidade total são obrigatórios', 400);
+  }
+
+  // Se categoryId não fornecido, tentar buscar por category (legado)
+  let finalCategoryId = categoryId;
+  if (!finalCategoryId && category) {
+    const categoryResult = await pool.query(
+      'SELECT id FROM equipment_categories WHERE name = $1',
+      [category]
+    );
+    if (categoryResult.rows.length > 0) {
+      finalCategoryId = categoryResult.rows[0].id;
+    }
   }
 
   const result = await pool.query(`
     INSERT INTO equipments (
-      name, total_quantity, description, category, hourly_rate, 
+      name, total_quantity, description, category_id, category, hourly_rate, 
       daily_rate, condition, location, last_maintenance
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *
   `, [
-    name, totalQuantity, description, category, hourlyRate,
+    name, totalQuantity, description, finalCategoryId, category, hourlyRate,
     dailyRate, condition, location, lastMaintenance
   ]);
 

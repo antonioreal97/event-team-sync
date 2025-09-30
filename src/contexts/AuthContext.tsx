@@ -147,6 +147,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           averageRating: undefined,
         };
         setUser(demoUser);
+        // Armazenar token demo no localStorage para autenticação
+        localStorage.setItem('token', 'demo-token-admin');
         return;
       }
 
@@ -184,6 +186,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           averageRating: 4.5,
         };
         setUser(demoUser);
+        // Armazenar token demo no localStorage para autenticação
+        localStorage.setItem('token', 'demo-token-freelancer');
         return;
       }
 
@@ -221,6 +225,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           averageRating: 4.8,
         };
         setUser(demoUser);
+        // Armazenar token demo no localStorage para autenticação
+        localStorage.setItem('token', 'demo-token-lider');
         return;
       }
 
@@ -245,6 +251,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('token');
     setUser(null);
   };
 

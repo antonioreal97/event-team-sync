@@ -30,6 +30,26 @@ export const authenticateToken = async (
       });
     }
 
+    // Verificar se é um token demo
+    if (token.startsWith('demo-token-')) {
+      const userType = token.replace('demo-token-', '');
+      let userRole = 'freelancer';
+      
+      if (userType === 'admin') {
+        userRole = 'gestor';
+      } else if (userType === 'lider') {
+        userRole = 'lider_freelancer';
+      }
+      
+      req.user = {
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'demo@frela.com',
+        role: userRole
+      };
+      
+      return next();
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error('JWT_SECRET não configurado');
@@ -38,7 +58,7 @@ export const authenticateToken = async (
       });
     }
 
-    // Verificar token
+    // Verificar token JWT
     const decoded = jwt.verify(token, secret) as any;
     
     // Verificar se usuário ainda existe e está ativo

@@ -22,6 +22,7 @@ import { TeamEscalation } from "./pages/TeamManagement/TeamEscalation";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import EquipmentManagement from "./pages/Equipment/EquipmentManagement";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,8 @@ const AppRoutes = () => {
       <Route path="/team-escalation" element={<ProtectedRoute><TeamEscalation /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      {/* Equipment management */}
+      <Route path="/equipment" element={<ProtectedRoute><EquipmentManagement /></ProtectedRoute>} />
       
       {/* 404 catch-all route */}
       <Route path="*" element={<NotFound />} />
