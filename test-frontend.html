@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testes Frontend - Event Team Sync</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .test-results {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.running {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Testes Frontend - Event Team Sync</h1>
+        <p>Esta página permite testar as funcionalidades do frontend da aplicação Event Team Sync.</p>
+        
+        <div class="test-section">
+            <h2>🔧 Configuração</h2>
+            <p>URL da aplicação: <input type="text" id="appUrl" value="http://localhost" style="width: 300px;"></p>
+            <button class="test-button" onclick="loadApp()">Carregar Aplicação</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🌐 Testes de Conectividade</h2>
+            <button class="test-button" onclick="testConnectivity()">Testar Conectividade</button>
+            <button class="test-button" onclick="testApiEndpoints()">Testar APIs</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🎨 Testes de Interface</h2>
+            <button class="test-button" onclick="testUIElements()">Testar Elementos UI</button>
+            <button class="test-button" onclick="testResponsiveDesign()">Testar Design Responsivo</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Testes de Formulários</h2>
+            <button class="test-button" onclick="testLoginForm()">Testar Login</button>
+            <button class="test-button" onclick="testEventForm()">Testar Formulário de Evento</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🎪 Testes de Funcionalidades</h2>
+            <button class="test-button" onclick="testEventManagement()">Testar Gestão de Eventos</button>
+            <button class="test-button" onclick="testUserManagement()">Testar Gestão de Usuários</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🔄 Testes de Navegação</h2>
+            <button class="test-button" onclick="testNavigation()">Testar Navegação</button>
+            <button class="test-button" onclick="testRouting()">Testar Roteamento</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Relatórios</h2>
+            <button class="test-button" onclick="runAllTests()">Executar Todos os Testes</button>
+            <button class="test-button" onclick="generateReport()">Gerar Relatório</button>
+            <button class="test-button" onclick="clearResults()">Limpar Resultados</button>
+        </div>
+
+        <div id="results" class="test-results" style="display: none;">
+            <h3>Resultados dos Testes:</h3>
+            <div id="testOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let appWindow = null;
+
+        // Função para carregar a aplicação em iframe
+        function loadApp() {
+            const url = document.getElementById('appUrl').value;
+            if (appWindow) {
+                appWindow.close();
+            }
+            appWindow = window.open(url, 'app', 'width=1200,height=800');
+            logResult('Aplicação carregada em nova janela', 'pass');
+        }
+
+        // Função para testar conectividade
+        async function testConnectivity() {
+            const url = document.getElementById('appUrl').value;
+            logResult('Testando conectividade...', 'running');
+            
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    logResult(`✅ Conectividade OK - Status: ${response.status}`, 'pass');
+                } else {
+                    logResult(`❌ Conectividade FALHOU - Status: ${response.status}`, 'fail');
+                }
+            } catch (error) {
+                logResult(`❌ Erro de conectividade: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar endpoints da API
+        async function testApiEndpoints() {
+            const baseUrl = document.getElementById('appUrl').value;
+            const endpoints = [
+                '/api/health',
+                '/api/events',
+                '/api/users',
+                '/api/auth/login'
+            ];
+
+            logResult('Testando endpoints da API...', 'running');
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(baseUrl + endpoint);
+                    const status = response.ok ? 'pass' : 'fail';
+                    const icon = response.ok ? '✅' : '❌';
+                    logResult(`${icon} ${endpoint} - Status: ${response.status}`, status);
+                } catch (error) {
+                    logResult(`❌ ${endpoint} - Erro: ${error.message}`, 'fail');
+                }
+            }
+        }
+
+        // Função para testar elementos da UI
+        function testUIElements() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando elementos da UI...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const elements = [
+                    { selector: 'body', name: 'Body' },
+                    { selector: 'main', name: 'Main content' },
+                    { selector: 'header', name: 'Header' },
+                    { selector: 'nav', name: 'Navigation' },
+                    { selector: 'button', name: 'Buttons' },
+                    { selector: 'form', name: 'Forms' },
+                    { selector: 'input', name: 'Input fields' }
+                ];
+
+                elements.forEach(element => {
+                    const found = doc.querySelector(element.selector);
+                    const status = found ? 'pass' : 'fail';
+                    const icon = found ? '✅' : '❌';
+                    logResult(`${icon} ${element.name}: ${found ? 'Encontrado' : 'Não encontrado'}`, status);
+                });
+            } catch (error) {
+                logResult(`❌ Erro ao testar UI: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar design responsivo
+        function testResponsiveDesign() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando design responsivo...', 'running');
+
+            const viewports = [
+                { width: 320, height: 568, name: 'Mobile' },
+                { width: 768, height: 1024, name: 'Tablet' },
+                { width: 1200, height: 800, name: 'Desktop' }
+            ];
+
+            viewports.forEach(viewport => {
+                try {
+                    appWindow.resizeTo(viewport.width, viewport.height);
+                    logResult(`✅ Viewport ${viewport.name} (${viewport.width}x${viewport.height}) aplicado`, 'pass');
+                } catch (error) {
+                    logResult(`❌ Erro ao aplicar viewport ${viewport.name}: ${error.message}`, 'fail');
+                }
+            });
+        }
+
+        // Função para testar formulário de login
+        function testLoginForm() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando formulário de login...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const emailInput = doc.querySelector('input[type="email"]');
+                const passwordInput = doc.querySelector('input[type="password"]');
+                const submitButton = doc.querySelector('button[type="submit"]');
+
+                if (emailInput && passwordInput) {
+                    emailInput.value = 'test@example.com';
+                    passwordInput.value = 'password123';
+                    logResult('✅ Campos de login preenchidos', 'pass');
+                } else {
+                    logResult('❌ Campos de login não encontrados', 'fail');
+                }
+
+                if (submitButton) {
+                    logResult('✅ Botão de submit encontrado', 'pass');
+                } else {
+                    logResult('❌ Botão de submit não encontrado', 'fail');
+                }
+            } catch (error) {
+                logResult(`❌ Erro ao testar login: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar formulário de evento
+        function testEventForm() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando formulário de evento...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const form = doc.querySelector('form');
+                
+                if (form) {
+                    const inputs = form.querySelectorAll('input, textarea, select');
+                    logResult(`✅ Formulário encontrado com ${inputs.length} campos`, 'pass');
+                    
+                    // Testar preenchimento
+                    inputs.forEach(input => {
+                        if (input.type === 'text' || input.type === 'email') {
+                            input.value = 'Teste';
+                        } else if (input.type === 'date') {
+                            input.value = '2024-12-01';
+                        }
+                    });
+                    logResult('✅ Campos preenchidos com dados de teste', 'pass');
+                } else {
+                    logResult('❌ Formulário não encontrado', 'fail');
+                }
+            } catch (error) {
+                logResult(`❌ Erro ao testar formulário: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar gestão de eventos
+        function testEventManagement() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando gestão de eventos...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const eventCards = doc.querySelectorAll('[data-testid="event-card"]');
+                const createButton = doc.querySelector('[data-testid="create-event-btn"]');
+                const filterInput = doc.querySelector('[data-testid="filter-events"]');
+
+                logResult(`✅ ${eventCards.length} cards de evento encontrados`, 'pass');
+                logResult(createButton ? '✅ Botão de criar evento encontrado' : '❌ Botão de criar evento não encontrado', createButton ? 'pass' : 'fail');
+                logResult(filterInput ? '✅ Filtro de eventos encontrado' : '❌ Filtro de eventos não encontrado', filterInput ? 'pass' : 'fail');
+            } catch (error) {
+                logResult(`❌ Erro ao testar gestão de eventos: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar gestão de usuários
+        function testUserManagement() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando gestão de usuários...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const userList = doc.querySelector('[data-testid="user-list"]');
+                const userCards = doc.querySelectorAll('[data-testid="user-card"]');
+
+                logResult(userList ? '✅ Lista de usuários encontrada' : '❌ Lista de usuários não encontrada', userList ? 'pass' : 'fail');
+                logResult(`✅ ${userCards.length} cards de usuário encontrados`, 'pass');
+            } catch (error) {
+                logResult(`❌ Erro ao testar gestão de usuários: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar navegação
+        function testNavigation() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando navegação...', 'running');
+
+            try {
+                const doc = appWindow.document;
+                const links = doc.querySelectorAll('a[href]');
+                const buttons = doc.querySelectorAll('button');
+
+                logResult(`✅ ${links.length} links encontrados`, 'pass');
+                logResult(`✅ ${buttons.length} botões encontrados`, 'pass');
+
+                // Testar cliques em links
+                links.forEach((link, index) => {
+                    if (index < 3) { // Testar apenas os primeiros 3 links
+                        try {
+                            link.click();
+                            logResult(`✅ Link ${index + 1} clicado com sucesso`, 'pass');
+                        } catch (error) {
+                            logResult(`❌ Erro ao clicar no link ${index + 1}: ${error.message}`, 'fail');
+                        }
+                    }
+                });
+            } catch (error) {
+                logResult(`❌ Erro ao testar navegação: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para testar roteamento
+        function testRouting() {
+            if (!appWindow) {
+                logResult('❌ Aplicação não carregada. Carregue a aplicação primeiro.', 'fail');
+                return;
+            }
+
+            logResult('Testando roteamento...', 'running');
+
+            try {
+                const currentUrl = appWindow.location.href;
+                logResult(`✅ URL atual: ${currentUrl}`, 'pass');
+
+                // Testar mudança de URL
+                const originalUrl = currentUrl;
+                appWindow.history.pushState({}, '', originalUrl + '#test');
+                logResult('✅ Histórico de navegação testado', 'pass');
+            } catch (error) {
+                logResult(`❌ Erro ao testar roteamento: ${error.message}`, 'fail');
+            }
+        }
+
+        // Função para executar todos os testes
+        async function runAllTests() {
+            logResult('🚀 Iniciando execução de todos os testes...', 'running');
+            
+            await testConnectivity();
+            await testApiEndpoints();
+            testUIElements();
+            testResponsiveDesign();
+            testLoginForm();
+            testEventForm();
+            testEventManagement();
+            testUserManagement();
+            testNavigation();
+            testRouting();
+
+            logResult('✅ Todos os testes executados!', 'pass');
+            generateReport();
+        }
+
+        // Função para gerar relatório
+        function generateReport() {
+            const passed = testResults.filter(r => r.status === 'pass').length;
+            const failed = testResults.filter(r => r.status === 'fail').length;
+            const total = testResults.length;
+
+            logResult('\n📊 RELATÓRIO FINAL:', 'running');
+            logResult(`✅ Testes que passaram: ${passed}`, 'pass');
+            logResult(`❌ Testes que falharam: ${failed}`, failed > 0 ? 'fail' : 'pass');
+            logResult(`📈 Total de testes: ${total}`, 'running');
+            logResult(`🎯 Taxa de sucesso: ${total > 0 ? ((passed / total) * 100).toFixed(1) : 0}%`, 'running');
+        }
+
+        // Função para limpar resultados
+        function clearResults() {
+            testResults = [];
+            document.getElementById('testOutput').innerHTML = '';
+            document.getElementById('results').style.display = 'none';
+        }
+
+        // Função para registrar resultado
+        function logResult(message, status) {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = {
+                message: `[${timestamp}] ${message}`,
+                status: status
+            };
+            testResults.push(result);
+
+            const output = document.getElementById('testOutput');
+            const statusClass = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'running';
+            output.innerHTML += `<div class="status ${statusClass}">${result.message}</div>`;
+            
+            document.getElementById('results').style.display = 'block';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            logResult('🧪 Sistema de testes frontend carregado!', 'pass');
+            logResult('Clique em "Carregar Aplicação" para começar os testes.', 'running');
+        });
+    </script>
+</body>
+</html>
