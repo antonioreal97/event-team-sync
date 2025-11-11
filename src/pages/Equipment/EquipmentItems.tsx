@@ -29,12 +29,20 @@ export default function EquipmentItems() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    equipmentId: string;
+    assetTag: string;
+    serialNumber: string;
+    condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+    status: 'in_service' | 'maintenance' | 'retired' | 'lost';
+    location: string;
+    notes: string;
+  }>({
     equipmentId: '',
     assetTag: '',
     serialNumber: '',
-    condition: 'good' as const,
-    status: 'in_service' as const,
+    condition: 'good',
+    status: 'in_service',
     location: '',
     notes: ''
   });
