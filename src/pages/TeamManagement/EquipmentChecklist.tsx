@@ -280,12 +280,6 @@ export default function EquipmentChecklist() {
                         </Badge>
                       )}
 
-                      {reservation.location && (
-                        <p className="text-sm text-muted-foreground">
-                          📍 {reservation.location}
-                        </p>
-                      )}
-
                       {reservation.checkedOutAt && (
                         <p className="text-sm text-muted-foreground">
                           Retirado em: {new Date(reservation.checkedOutAt).toLocaleString('pt-BR')}

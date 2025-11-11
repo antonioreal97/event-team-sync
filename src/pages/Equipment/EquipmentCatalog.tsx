@@ -23,14 +23,24 @@ export default function EquipmentCatalog() {
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    totalQuantity: number;
+    description: string;
+    categoryId: string;
+    hourlyRate: number;
+    dailyRate: number;
+    condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+    location: string;
+    lastMaintenance: string;
+  }>({
     name: '',
     totalQuantity: 0,
     description: '',
     categoryId: '',
     hourlyRate: 0,
     dailyRate: 0,
-    condition: 'good' as const,
+    condition: 'good',
     location: '',
     lastMaintenance: ''
   });
