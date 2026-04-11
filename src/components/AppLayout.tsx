@@ -82,12 +82,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar-background shadow-2xl border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar-background shadow-2xl border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-6 border-b border-sidebar-border bg-gradient-to-r from-sidebar-background to-sidebar-accent">
+        <div className="flex items-center justify-between p-6 border-b border-sidebar-border bg-gradient-to-r from-sidebar-background to-sidebar-accent flex-shrink-0">
                              <div className="flex items-center space-x-3">
                      <div className="w-8 h-8 flex items-center justify-center">
                        <img 
@@ -110,8 +110,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Button>
         </div>
 
-        {/* Sidebar Navigation */}
-        <nav className="p-6">
+        {/* Sidebar Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-6">
           <ul className="space-y-3">
             <SidebarMenuItem>
               <SidebarMenuButton 
@@ -198,12 +198,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton 
-                    onClick={() => navigate('/event-interest-management')}
-                    isActive={isActiveRoute('/event-interest-management')}
+                    onClick={() => navigate('/pending-allocations')}
+                    isActive={isActiveRoute('/pending-allocations')}
                   >
                     <div className="flex items-center">
                       <CheckCircle className="w-5 h-5 mr-3" />
-                      <span className="font-medium">Interesse em Eventos</span>
+                      <span className="font-medium">Pendências de escalação</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -279,7 +279,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </nav>
 
         {/* Sidebar Footer - User Profile & Logout */}
-        <div className="mt-auto">
+        <div className="mt-auto flex-shrink-0">
           {/* User Profile Section */}
           <div className="p-6 border-t border-sidebar-border bg-gradient-to-r from-sidebar-accent to-sidebar-background">
             <div className="flex items-center space-x-3">

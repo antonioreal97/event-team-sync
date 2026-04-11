@@ -136,3 +136,18 @@ export const requireFreelancer = (
   }
   next();
 };
+
+/** Freelancer ou líder freelancer (confirmação de escalação, etc.). */
+export const requireFreelancerOrLider = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const r = req.user?.role;
+  if (r !== 'freelancer' && r !== 'lider_freelancer') {
+    return res.status(403).json({
+      error: 'Acesso negado. Apenas freelancers podem realizar esta ação.',
+    });
+  }
+  next();
+};

@@ -1,5 +1,23 @@
-import { Event, User, EventForFreelancer } from '@/types';
+import { Event, User, EventForFreelancer, TeamType } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+
+// Helper function to get daily rate based on user's experience level
+const getUserDailyRate = (teamType: TeamType | undefined, event: Event): number => {
+  if (!teamType || teamType === 'sem_equipe') {
+    return event.dailyRateIniciante;
+  }
+  
+  switch (teamType) {
+    case 'iniciante':
+      return event.dailyRateIniciante;
+    case 'intermediario':
+      return event.dailyRateIntermediario;
+    case 'avancado':
+      return event.dailyRateAvancado;
+    default:
+      return event.dailyRateIniciante;
+  }
+};
 
 // Event visibility service functions - Conectado ao PostgreSQL
 export const filterEventForUser = async (event: Event, user: User): Promise<EventForFreelancer | null> => {
@@ -31,7 +49,7 @@ export const filterEventForUser = async (event: Event, user: User): Promise<Even
         estimatedDuration: event.estimatedDuration,
         requirements: event.requirements,
         userTeamType: user.teamType || 'sem_equipe',
-        userDailyRate: user.teamType === 'equipe_a' ? event.dailyRateTeamA : event.dailyRateTeamB,
+        userDailyRate: getUserDailyRate(user.teamType, event),
         totalDays: event.totalDays,
         isMultiDay: event.isMultiDay,
         workingDays: event.workingDays,

@@ -84,10 +84,8 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
   const event = eventResult.rows[0];
 
-  // Se for freelancer, verificar se pode acessar o evento
-  if (userRole === 'freelancer') {
-    // Freelancers podem acessar eventos confirmados (para confirmar interesse)
-    // ou eventos onde estão alocados
+  // Freelancer / líder: evento confirmado ou já alocado (inclui pendente de disponibilidade)
+  if (userRole === 'freelancer' || userRole === 'lider_freelancer') {
     if (event.status !== 'confirmed') {
       const allocationResult = await pool.query(
         'SELECT id FROM team_allocations WHERE event_id = $1 AND user_id = $2',

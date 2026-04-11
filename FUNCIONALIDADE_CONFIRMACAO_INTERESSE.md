@@ -1,8 +1,10 @@
 # Funcionalidade de Confirmação de Interesse em Eventos
 
+> **Descontinuado (2026):** o produto passou a usar **escalação pelo gestor** com **confirmação de disponibilidade** via API Express (`/api/teams/allocate`, confirmação/recusa na alocação). O documento abaixo descreve o fluxo antigo apenas para referência histórica.
+
 ## Visão Geral
 
-Esta funcionalidade permite que freelancers confirmem seu interesse em eventos específicos, notificando automaticamente os administradores para que possam gerenciar as escalas de equipe.
+Esta funcionalidade permitia que freelancers confirmassem interesse em eventos específicos (fluxo substituído pelo descrito acima).
 
 ## Como Funciona
 

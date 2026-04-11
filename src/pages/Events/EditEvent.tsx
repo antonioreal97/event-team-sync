@@ -38,7 +38,7 @@ const EditEvent = () => {
     budget: '',
     requirements: [] as AudioVisualRole[],
     notes: '',
-    teamPriority: 'equipe_a' as 'equipe_a' | 'equipe_b' | 'ambas',
+    teamPriority: 'avancado' as 'iniciante' | 'intermediario' | 'avancado' | 'ambas',
     allowTeamB: true,
     dailySchedule: [] as DailySchedule[],
     eventAgenda: '',
@@ -82,17 +82,24 @@ const EditEvent = () => {
     const summary = {
       totalDays,
       isMultiDay,
-      equipe_a: {
-        dailyRate: calculateDailyRate(formData.eventType, 'equipe_a'),
+      iniciante: {
+        dailyRate: calculateDailyRate(formData.eventType, 'iniciante'),
         totalPayment: calculateTotalPayment(
-          calculateDailyRate(formData.eventType, 'equipe_a'),
+          calculateDailyRate(formData.eventType, 'iniciante'),
           totalDays
         ),
       },
-      equipe_b: {
-        dailyRate: calculateDailyRate(formData.eventType, 'equipe_b'),
+      intermediario: {
+        dailyRate: calculateDailyRate(formData.eventType, 'intermediario'),
         totalPayment: calculateTotalPayment(
-          calculateDailyRate(formData.eventType, 'equipe_b'),
+          calculateDailyRate(formData.eventType, 'intermediario'),
+          totalDays
+        ),
+      },
+      avancado: {
+        dailyRate: calculateDailyRate(formData.eventType, 'avancado'),
+        totalPayment: calculateTotalPayment(
+          calculateDailyRate(formData.eventType, 'avancado'),
           totalDays
         ),
       },
@@ -132,7 +139,7 @@ const EditEvent = () => {
         budget: eventData.budget?.toString() || '',
         requirements: eventData.requirements || [],
         notes: eventData.notes || '',
-        teamPriority: eventData.teamPriority || 'equipe_a' as const,
+        teamPriority: eventData.teamPriority || 'avancado' as const,
         allowTeamB: eventData.allowTeamB ?? true,
         // Novos campos
         dailySchedule: eventData.dailySchedule || [],
@@ -267,8 +274,9 @@ const EditEvent = () => {
         notes: formData.notes,
         team_priority: formData.teamPriority,
         allow_team_b: formData.allowTeamB,
-        daily_rate_team_a: pricingSummary?.equipe_a.dailyRate || 0,
-        daily_rate_team_b: pricingSummary?.equipe_b.dailyRate || 0,
+        daily_rate_iniciante: pricingSummary?.iniciante.dailyRate || 0,
+        daily_rate_intermediario: pricingSummary?.intermediario.dailyRate || 0,
+        daily_rate_avancado: pricingSummary?.avancado.dailyRate || 0,
         is_multi_day: isMultiDay,
         total_days: totalDays,
         working_days: workingDays,
@@ -643,29 +651,42 @@ const EditEvent = () => {
                       <div className="text-amber-800 font-medium">Total de Dias</div>
                     </div>
                     
-                    {/* Equipes */}
+                    {/* Categorias */}
                     <div className="grid grid-cols-1 gap-4">
-                      {/* Equipe A */}
-                      <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                      {/* Iniciante */}
+                      <div className="bg-gradient-to-r from-blue-700/80 to-blue-600/80 p-4 rounded-lg border border-blue-400/40">
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-amber-100">Equipe A</span>
+                          <span className="font-semibold text-blue-100">Iniciante</span>
                           <div className="text-right">
-                            <div className="text-amber-200 text-sm">R$ {pricingSummary.equipe_a.dailyRate}/dia</div>
-                            <div className="text-amber-100 font-bold text-lg">
-                              R$ {pricingSummary.equipe_a.totalPayment}
+                            <div className="text-blue-200 text-sm">R$ {pricingSummary.iniciante.dailyRate}/dia</div>
+                            <div className="text-blue-100 font-bold text-lg">
+                              R$ {pricingSummary.iniciante.totalPayment}
                             </div>
                           </div>
                         </div>
                       </div>
                       
-                      {/* Equipe B */}
-                      <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                      {/* Intermediário */}
+                      <div className="bg-gradient-to-r from-purple-700/80 to-purple-600/80 p-4 rounded-lg border border-purple-400/40">
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-amber-100">Equipe B</span>
+                          <span className="font-semibold text-purple-100">Intermediário</span>
                           <div className="text-right">
-                            <div className="text-amber-200 text-sm">R$ {pricingSummary.equipe_b.dailyRate}/dia</div>
+                            <div className="text-purple-200 text-sm">R$ {pricingSummary.intermediario.dailyRate}/dia</div>
+                            <div className="text-purple-100 font-bold text-lg">
+                              R$ {pricingSummary.intermediario.totalPayment}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Avançado */}
+                      <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-amber-100">Avançado</span>
+                          <div className="text-right">
+                            <div className="text-amber-200 text-sm">R$ {pricingSummary.avancado.dailyRate}/dia</div>
                             <div className="text-amber-100 font-bold text-lg">
-                              R$ {pricingSummary.equipe_b.totalPayment}
+                              R$ {pricingSummary.avancado.totalPayment}
                             </div>
                           </div>
                         </div>
@@ -724,10 +745,10 @@ const EditEvent = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="teamPriority">Prioridade de Equipe</Label>
+                  <Label htmlFor="teamPriority">Prioridade de Categoria</Label>
                   <Select
                     value={formData.teamPriority}
-                    onValueChange={(value: 'equipe_a' | 'equipe_b' | 'ambas') => 
+                    onValueChange={(value: 'iniciante' | 'intermediario' | 'avancado' | 'ambas') => 
                       setFormData(prev => ({ ...prev, teamPriority: value }))
                     }
                   >
@@ -735,15 +756,16 @@ const EditEvent = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="equipe_a">Equipe A - Prioridade Máxima</SelectItem>
-                      <SelectItem value="equipe_b">Equipe B - Suporte</SelectItem>
-                      <SelectItem value="ambas">Ambas as Equipes</SelectItem>
+                      <SelectItem value="iniciante">Iniciante</SelectItem>
+                      <SelectItem value="intermediario">Intermediário</SelectItem>
+                      <SelectItem value="avancado">Avançado</SelectItem>
+                      <SelectItem value="ambas">Todas as Categorias</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <Label htmlFor="allowTeamB">Backup Equipe B</Label>
+                  <Label htmlFor="allowTeamB">Permitir Backup de Outras Categorias</Label>
                   <Select
                     value={formData.allowTeamB ? 'true' : 'false'}
                     onValueChange={(value) => 

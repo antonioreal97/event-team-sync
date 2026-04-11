@@ -38,8 +38,8 @@ const CreateEvent = () => {
     budget: '',
     requirements: [] as AudioVisualRole[],
     notes: '',
-    teamPriority: 'equipe_a' as const,
-    allowTeamB: true,
+    teamPriority: 'iniciante' as const,
+    allowBackupLevels: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -54,17 +54,24 @@ const CreateEvent = () => {
       const summary = {
         totalDays,
         isMultiDay,
-        equipe_a: {
-          dailyRate: calculateDailyRate(formData.eventType, 'equipe_a'),
+        iniciante: {
+          dailyRate: calculateDailyRate(formData.eventType, 'iniciante'),
           totalPayment: calculateTotalPayment(
-            calculateDailyRate(formData.eventType, 'equipe_a'),
+            calculateDailyRate(formData.eventType, 'iniciante'),
             totalDays
           ),
         },
-        equipe_b: {
-          dailyRate: calculateDailyRate(formData.eventType, 'equipe_b'),
+        intermediario: {
+          dailyRate: calculateDailyRate(formData.eventType, 'intermediario'),
           totalPayment: calculateTotalPayment(
-            calculateDailyRate(formData.eventType, 'equipe_b'),
+            calculateDailyRate(formData.eventType, 'intermediario'),
+            totalDays
+          ),
+        },
+        avancado: {
+          dailyRate: calculateDailyRate(formData.eventType, 'avancado'),
+          totalPayment: calculateTotalPayment(
+            calculateDailyRate(formData.eventType, 'avancado'),
             totalDays
           ),
         },
@@ -98,9 +105,10 @@ const CreateEvent = () => {
         requirements: formData.requirements,
         notes: formData.notes,
         teamPriority: formData.teamPriority,
-        allowTeamB: formData.allowTeamB,
-        dailyRateTeamA: pricingSummary?.equipe_a.dailyRate || 0,
-        dailyRateTeamB: pricingSummary?.equipe_b.dailyRate || 0,
+        allowBackupLevels: formData.allowBackupLevels,
+        dailyRateIniciante: pricingSummary?.iniciante.dailyRate || 0,
+        dailyRateIntermediario: pricingSummary?.intermediario.dailyRate || 0,
+        dailyRateAvancado: pricingSummary?.avancado.dailyRate || 0,
         isMultiDay,
         totalDays,
         workingDays,
@@ -304,13 +312,13 @@ const CreateEvent = () => {
                 </div>
                 <div className="flex items-center space-x-2 pt-6">
                   <input
-                    id="allowTeamB"
+                    id="allowBackupLevels"
                     type="checkbox"
-                    checked={formData.allowTeamB}
-                    onChange={(e) => setFormData(prev => ({ ...prev, allowTeamB: e.target.checked }))}
+                    checked={formData.allowBackupLevels}
+                    onChange={(e) => setFormData(prev => ({ ...prev, allowBackupLevels: e.target.checked }))}
                     className="rounded"
                   />
-                  <Label htmlFor="allowTeamB">Permitir Equipe B como backup</Label>
+                  <Label htmlFor="allowBackupLevels">Permitir outros níveis como backup</Label>
                 </div>
               </div>
 
@@ -329,26 +337,37 @@ const CreateEvent = () => {
                       <div className="text-amber-800 font-medium">Total de Dias</div>
                     </div>
                     
-                    {/* Equipes */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Equipe A */}
-                      <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                    {/* Níveis de Experiência */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Iniciante */}
+                      <div className="bg-gradient-to-r from-blue-700/80 to-blue-600/80 p-4 rounded-lg border border-blue-400/40">
                         <div className="text-center">
-                          <div className="font-semibold text-amber-100 mb-2">Equipe A</div>
-                          <div className="text-amber-200 text-sm">R$ {pricingSummary.equipe_a.dailyRate}/dia</div>
-                          <div className="text-amber-100 font-bold text-lg">
-                            Total: R$ {pricingSummary.equipe_a.totalPayment}
+                          <div className="font-semibold text-blue-100 mb-2">Iniciante</div>
+                          <div className="text-blue-200 text-sm">R$ {pricingSummary.iniciante.dailyRate}/dia</div>
+                          <div className="text-blue-100 font-bold text-lg">
+                            Total: R$ {pricingSummary.iniciante.totalPayment}
                           </div>
                         </div>
                       </div>
                       
-                      {/* Equipe B */}
-                      <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                      {/* Intermediário */}
+                      <div className="bg-gradient-to-r from-green-700/80 to-green-600/80 p-4 rounded-lg border border-green-400/40">
                         <div className="text-center">
-                          <div className="font-semibold text-amber-100 mb-2">Equipe B</div>
-                          <div className="text-amber-200 text-sm">R$ {pricingSummary.equipe_b.dailyRate}/dia</div>
+                          <div className="font-semibold text-green-100 mb-2">Intermediário</div>
+                          <div className="text-green-200 text-sm">R$ {pricingSummary.intermediario.dailyRate}/dia</div>
+                          <div className="text-green-100 font-bold text-lg">
+                            Total: R$ {pricingSummary.intermediario.totalPayment}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Avançado */}
+                      <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                        <div className="text-center">
+                          <div className="font-semibold text-amber-100 mb-2">Avançado</div>
+                          <div className="text-amber-200 text-sm">R$ {pricingSummary.avancado.dailyRate}/dia</div>
                           <div className="text-amber-100 font-bold text-lg">
-                            Total: R$ {pricingSummary.equipe_b.totalPayment}
+                            Total: R$ {pricingSummary.avancado.totalPayment}
                           </div>
                         </div>
                       </div>
@@ -376,12 +395,12 @@ const CreateEvent = () => {
                 <span>Prioridade de Equipe</span>
               </CardTitle>
               <CardDescription>
-                Configure qual equipe tem prioridade para este evento (apenas gestores veem essas informações)
+                Configure qual nível de experiência tem prioridade para este evento (apenas gestores veem essas informações)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="teamPriority">Equipe Prioritária *</Label>
+                <Label htmlFor="teamPriority">Nível Prioritário *</Label>
                 <Select
                   value={formData.teamPriority}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, teamPriority: value as any }))}
@@ -390,25 +409,26 @@ const CreateEvent = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="equipe_a">Equipe A - Prioridade Máxima</SelectItem>
-                    <SelectItem value="equipe_b">Equipe B - Suporte</SelectItem>
-                    <SelectItem value="ambas">Ambas as Equipes</SelectItem>
+                    <SelectItem value="iniciante">Iniciante - Prioridade</SelectItem>
+                    <SelectItem value="intermediario">Intermediário - Prioridade</SelectItem>
+                    <SelectItem value="avancado">Avançado - Prioridade</SelectItem>
+                    <SelectItem value="ambas">Todos os Níveis</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  ⚠️ Esta informação é visível apenas para gestores para evitar intrigas entre equipes
+                  ⚠️ Esta informação é visível apenas para gestores para evitar intrigas entre níveis
                 </p>
               </div>
               
               <div className="flex items-center space-x-2">
                 <input
-                  id="allowTeamB"
+                  id="allowBackupLevels"
                   type="checkbox"
-                  checked={formData.allowTeamB}
-                  onChange={(e) => setFormData(prev => ({ ...prev, allowTeamB: e.target.checked }))}
+                  checked={formData.allowBackupLevels}
+                  onChange={(e) => setFormData(prev => ({ ...prev, allowBackupLevels: e.target.checked }))}
                   className="rounded"
                 />
-                <Label htmlFor="allowTeamB">Permitir Equipe B como backup</Label>
+                <Label htmlFor="allowBackupLevels">Permitir outros níveis como backup</Label>
                 <p className="text-xs text-gray-500 ml-2">
                   (Visível apenas para gestores)
                 </p>

@@ -11,8 +11,14 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
+import { getTeamTypeLabel } from '@/lib/utils';
 import { getEventById, updateEventStatus } from '@/services/eventService';
-import { confirmEventInterest, checkEventInterestStatus, cancelEventInterest, EventInterestConfirmation } from '@/services/eventInterestService';
+import {
+  apiGetMyAllocations,
+  apiConfirmAllocationAvailability,
+  apiDeclineAllocationAvailability,
+  type ApiTeamAllocationRow,
+} from '@/services/teamAllocationApiService';
 import { 
   Calendar, 
   MapPin, 
@@ -35,16 +41,38 @@ const EventDetail = () => {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [interestStatus, setInterestStatus] = useState<EventInterestConfirmation | null>(null);
-  const [interestLoading, setInterestLoading] = useState(false);
+  const [myAllocations, setMyAllocations] = useState<ApiTeamAllocationRow[]>([]);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationActionLoading, setAllocationActionLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+
+  const fetchMyAllocationsForEvent = async () => {
+    if (!id || !user || (user.role !== 'freelancer' && user.role !== 'lider_freelancer')) {
+      setMyAllocations([]);
+      return;
+    }
+    try {
+      setAllocationLoading(true);
+      const rows = await apiGetMyAllocations(id);
+      setMyAllocations(rows);
+    } catch {
+      setMyAllocations([]);
+    } finally {
+      setAllocationLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
-      fetchEventData();
-      fetchInterestStatus();
+      void fetchEventData();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (id && user) {
+      void fetchMyAllocationsForEvent();
+    }
+  }, [id, user?.id, user?.role]);
 
   const fetchEventData = async () => {
     if (!id) return;
@@ -76,96 +104,45 @@ const EventDetail = () => {
     }
   };
 
-  const fetchInterestStatus = async () => {
-    if (!id || !user || user.role !== 'freelancer') return;
-    
+  const handleConfirmAvailability = async (allocationId: string) => {
     try {
-      setStatusLoading(true);
-      const status = await checkEventInterestStatus(id);
-      setInterestStatus(status);
-      
-      // Log apenas para debug (opcional)
-      if (status) {
-        console.log('✅ Status de interesse encontrado:', status);
-      } else {
-        console.log('ℹ️ Usuário não confirmou interesse ainda');
-      }
-    } catch (error) {
-      console.error('❌ Erro ao buscar status de interesse:', error);
-      // Em caso de erro, definir como null para evitar exibir o botão
-      setInterestStatus(null);
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  const handleConfirmInterest = async () => {
-    if (!id || !user) return;
-    
-    try {
-      setInterestLoading(true);
-      const confirmation = await confirmEventInterest(id);
-      setInterestStatus(confirmation);
-      
+      setAllocationActionLoading(true);
+      await apiConfirmAllocationAvailability(allocationId);
       toast({
-        title: 'Interesse Confirmado',
-        description: 'Seu interesse no evento foi confirmado com sucesso! O administrador será notificado.',
-        variant: 'default',
+        title: 'Disponibilidade confirmada',
+        description: 'Sua participação neste evento foi confirmada.',
       });
+      await fetchEventData();
+      await fetchMyAllocationsForEvent();
     } catch (error) {
-      console.error('Failed to confirm interest:', error);
-      
-      // Extrair mensagem de erro mais específica
-      let errorMessage = 'Falha ao confirmar interesse no evento';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        // Tentar extrair mensagem de erro da resposta da API
-        const errorObj = error as any;
-        if (errorObj.message) {
-          errorMessage = errorObj.message;
-        } else if (errorObj.error) {
-          errorMessage = errorObj.error;
-        }
-      }
-      
-      // Se o erro for que já confirmou interesse, recarregar o status
-      if (errorMessage.includes('já confirmou interesse')) {
-        await fetchInterestStatus();
-      }
-      
       toast({
         title: 'Erro',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Não foi possível confirmar.',
         variant: 'destructive',
       });
     } finally {
-      setInterestLoading(false);
+      setAllocationActionLoading(false);
     }
   };
 
-  const handleCancelInterest = async () => {
-    if (!id || !user) return;
-    
+  const handleDeclineAvailability = async (allocationId: string) => {
     try {
-      setInterestLoading(true);
-      await cancelEventInterest(id);
-      setInterestStatus(null);
-      
+      setAllocationActionLoading(true);
+      await apiDeclineAllocationAvailability(allocationId);
       toast({
-        title: 'Interesse Cancelado',
-        description: 'Seu interesse no evento foi cancelado.',
-        variant: 'default',
+        title: 'Escalação recusada',
+        description: 'O gestor foi notificado para escalar outro profissional.',
       });
+      await fetchEventData();
+      await fetchMyAllocationsForEvent();
     } catch (error) {
-      console.error('Failed to cancel interest:', error);
       toast({
         title: 'Erro',
-        description: 'Falha ao cancelar interesse no evento',
+        description: error instanceof Error ? error.message : 'Não foi possível recusar.',
         variant: 'destructive',
       });
     } finally {
-      setInterestLoading(false);
+      setAllocationActionLoading(false);
     }
   };
 
@@ -472,32 +449,45 @@ const EventDetail = () => {
                     console.log('🔍 Debug - user:', user);
                     console.log('🔍 Debug - event.teamAllocations:', event.teamAllocations);
                     
-                    // Se for gestor, mostrar ambas as equipes
+                    // Se for gestor, mostrar as 3 categorias
                     if (isGestor) {
-                      console.log('🔍 Debug - Usuário é gestor, mostrando ambas equipes');
+                      console.log('🔍 Debug - Usuário é gestor, mostrando todas as categorias');
                       return (
                         <>
-                          {/* Equipe A */}
-                          <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                          {/* Iniciante */}
+                          <div className="bg-gradient-to-r from-blue-700/80 to-blue-600/80 p-4 rounded-lg border border-blue-400/40">
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-amber-100">Equipe A</span>
+                              <span className="font-semibold text-blue-100">Iniciante</span>
                               <div className="text-right">
-                                <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamA || 0}/dia</div>
-                                <div className="text-amber-100 font-bold text-lg">
-                                  R$ {(event.dailyRateTeamA || 0) * (event.totalDays || 1)}
+                                <div className="text-blue-200 text-sm">R$ {event.dailyRateIniciante || 0}/dia</div>
+                                <div className="text-blue-100 font-bold text-lg">
+                                  R$ {(event.dailyRateIniciante || 0) * (event.totalDays || 1)}
                                 </div>
                               </div>
                             </div>
                           </div>
                           
-                          {/* Equipe B */}
-                          <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                          {/* Intermediário */}
+                          <div className="bg-gradient-to-r from-purple-700/80 to-purple-600/80 p-4 rounded-lg border border-purple-400/40">
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-amber-100">Equipe B</span>
+                              <span className="font-semibold text-purple-100">Intermediário</span>
                               <div className="text-right">
-                                <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamB || 0}/dia</div>
+                                <div className="text-purple-200 text-sm">R$ {event.dailyRateIntermediario || 0}/dia</div>
+                                <div className="text-purple-100 font-bold text-lg">
+                                  R$ {(event.dailyRateIntermediario || 0) * (event.totalDays || 1)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Avançado */}
+                          <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-amber-100">Avançado</span>
+                              <div className="text-right">
+                                <div className="text-amber-200 text-sm">R$ {event.dailyRateAvancado || 0}/dia</div>
                                 <div className="text-amber-100 font-bold text-lg">
-                                  R$ {(event.dailyRateTeamB || 0) * (event.totalDays || 1)}
+                                  R$ {(event.dailyRateAvancado || 0) * (event.totalDays || 1)}
                                 </div>
                               </div>
                             </div>
@@ -507,7 +497,7 @@ const EventDetail = () => {
                     }
                     
                     // Se for freelancer, mostrar apenas a equipe do usuário
-                    if (user && user.role === 'freelancer') {
+                    if (user && (user.role === 'freelancer' || user.role === 'lider_freelancer')) {
                       console.log('🔍 Debug - ENTRANDO na lógica de freelancer');
                       console.log('🔍 Debug - user.role:', user.role);
                       console.log('🔍 Debug - user.teamType:', user.teamType);
@@ -539,26 +529,47 @@ const EventDetail = () => {
                       console.log('🔍 Debug - userTeamType final:', userTeamType);
                       
                       if (userTeamType) {
-                        // Usar o team_type encontrado
-                        const isTeamA = userTeamType === 'equipe_a';
-                        const teamType = isTeamA ? 'A' : 'B';
-                        const dailyRate = isTeamA ? event.dailyRateTeamA : event.dailyRateTeamB;
-                        const totalPayment = dailyRate * (event.totalDays || 1);
+                        // Determinar a diária baseada no nível de experiência
+                        let dailyRate = 0;
+                        let gradientClass = '';
                         
-                        console.log('🔍 Debug - Team Type determinado:', teamType);
+                        if (userTeamType === 'iniciante' || userTeamType === 'equipe_b') {
+                          dailyRate = event.dailyRateIniciante || 0;
+                          gradientClass = 'from-blue-700/80 to-blue-600/80 border-blue-400/40';
+                        } else if (userTeamType === 'intermediario') {
+                          dailyRate = event.dailyRateIntermediario || 0;
+                          gradientClass = 'from-purple-700/80 to-purple-600/80 border-purple-400/40';
+                        } else if (userTeamType === 'avancado' || userTeamType === 'equipe_a') {
+                          dailyRate = event.dailyRateAvancado || 0;
+                          gradientClass = 'from-amber-700/80 to-amber-600/80 border-amber-400/40';
+                        } else {
+                          dailyRate = event.dailyRateIniciante || 0;
+                          gradientClass = 'from-gray-700/80 to-gray-600/80 border-gray-400/40';
+                        }
+                        
+                        const totalPayment = dailyRate * (event.totalDays || 1);
+                        const teamLabel = getTeamTypeLabel(userTeamType);
+                        
+                        console.log('🔍 Debug - Team Type determinado:', userTeamType);
                         console.log('🔍 Debug - Daily Rate usado:', dailyRate);
-                        console.log('🔍 Debug - RETORNANDO equipe específica do freelancer');
+                        console.log('🔍 Debug - RETORNANDO categoria específica do freelancer');
                         
                         return (
-                          <div className={`bg-gradient-to-r ${isTeamA ? 'from-amber-700/80 to-amber-600/80' : 'from-amber-600/80 to-amber-500/80'} p-4 rounded-lg border border-amber-400/40`}>
+                          <div className={`bg-gradient-to-r ${gradientClass} p-4 rounded-lg border`}>
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-amber-100">Equipe {teamType} - Sua Equipe</span>
+                              <span className={`font-semibold ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-100' : userTeamType === 'intermediario' ? 'text-purple-100' : 'text-amber-100'}`}>
+                                {teamLabel} - Sua Categoria
+                              </span>
                               <div className="text-right">
-                                <div className="text-amber-200 text-sm">R$ {dailyRate || 0}/dia</div>
-                                <div className="text-amber-100 font-bold text-lg">
+                                <div className={`text-sm ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-200' : userTeamType === 'intermediario' ? 'text-purple-200' : 'text-amber-200'}`}>
+                                  R$ {dailyRate || 0}/dia
+                                </div>
+                                <div className={`font-bold text-lg ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-100' : userTeamType === 'intermediario' ? 'text-purple-100' : 'text-amber-100'}`}>
                                   R$ {totalPayment}
                                 </div>
-                                <div className="text-amber-300 text-xs">Seu pagamento total</div>
+                                <div className={`text-xs ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-300' : userTeamType === 'intermediario' ? 'text-purple-300' : 'text-amber-300'}`}>
+                                  Seu pagamento total
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -578,31 +589,44 @@ const EventDetail = () => {
                       console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations?.length);
                     }
                     
-                    // Fallback: mostrar ambas as equipes se não conseguir determinar
-                    console.log('🔍 Debug - Usando fallback: mostrando ambas equipes');
+                    // Fallback: mostrar todas as categorias se não conseguir determinar
+                    console.log('🔍 Debug - Usando fallback: mostrando todas as categorias');
                     return (
                       <>
-                        {/* Equipe A */}
-                        <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                        {/* Iniciante */}
+                        <div className="bg-gradient-to-r from-blue-700/80 to-blue-600/80 p-4 rounded-lg border border-blue-400/40">
                           <div className="flex justify-between items-center">
-                            <span className="font-semibold text-amber-100">Equipe A</span>
+                            <span className="font-semibold text-blue-100">Iniciante</span>
                             <div className="text-right">
-                              <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamA || 0}/dia</div>
-                              <div className="text-amber-100 font-bold text-lg">
-                                R$ {(event.dailyRateTeamA || 0) * (event.totalDays || 1)}
+                              <div className="text-blue-200 text-sm">R$ {event.dailyRateIniciante || 0}/dia</div>
+                              <div className="text-blue-100 font-bold text-lg">
+                                R$ {(event.dailyRateIniciante || 0) * (event.totalDays || 1)}
                               </div>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Equipe B */}
-                        <div className="bg-gradient-to-r from-amber-600/80 to-amber-500/80 p-4 rounded-lg border border-amber-400/40">
+                        {/* Intermediário */}
+                        <div className="bg-gradient-to-r from-purple-700/80 to-purple-600/80 p-4 rounded-lg border border-purple-400/40">
                           <div className="flex justify-between items-center">
-                            <span className="font-semibold text-amber-100">Equipe B</span>
+                            <span className="font-semibold text-purple-100">Intermediário</span>
                             <div className="text-right">
-                              <div className="text-amber-200 text-sm">R$ {event.dailyRateTeamB || 0}/dia</div>
+                              <div className="text-purple-200 text-sm">R$ {event.dailyRateIntermediario || 0}/dia</div>
+                              <div className="text-purple-100 font-bold text-lg">
+                                R$ {(event.dailyRateIntermediario || 0) * (event.totalDays || 1)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Avançado */}
+                        <div className="bg-gradient-to-r from-amber-700/80 to-amber-600/80 p-4 rounded-lg border border-amber-400/40">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-amber-100">Avançado</span>
+                            <div className="text-right">
+                              <div className="text-amber-200 text-sm">R$ {event.dailyRateAvancado || 0}/dia</div>
                               <div className="text-amber-100 font-bold text-lg">
-                                R$ {(event.dailyRateTeamB || 0) * (event.totalDays || 1)}
+                                R$ {(event.dailyRateAvancado || 0) * (event.totalDays || 1)}
                               </div>
                             </div>
                           </div>
@@ -672,358 +696,75 @@ const EventDetail = () => {
                 </CardContent>
               </Card>
 
-              {/* Confirmação de Interesse - APENAS PARA FREELANCERS */}
-              {user && user.role === 'freelancer' && (
+              {/* Confirmação de disponibilidade (escalação) — freelancer / líder */}
+              {user && (user.role === 'freelancer' || user.role === 'lider_freelancer') && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <CheckCircle className="h-5 w-5" />
-                      <span>Status de Participação</span>
+                      <span>Sua escalação neste evento</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Indicador de carregamento do status */}
-                    {statusLoading && (
+                    {allocationLoading && (
                       <div className="flex items-center justify-center p-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                        <span className="ml-2 text-sm text-gray-600">Verificando status...</span>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                        <span className="ml-2 text-sm text-gray-600">Carregando alocação...</span>
                       </div>
                     )}
-                    
-                    {/* Verificar status de confirmação de interesse do freelancer */}
-                    {!statusLoading && (() => {
-                      // PRIORIDADE 1: Verificar se o usuário confirmou interesse
-                      if (interestStatus) {
-                        return (
-                          <div className="space-y-3">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <span className="text-sm font-medium text-green-700">
-                                Interesse confirmado em {new Date(interestStatus.confirmedAt || interestStatus.createdAt).toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                            
-                            {interestStatus.status === 'pending' && (
-                              <div className="space-y-3">
-                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                                  <p className="text-sm text-amber-700 text-center">
-                                    ⏳ Aguardando aprovação do administrador
-                                  </p>
-                                  <p className="text-xs text-amber-600 text-center mt-1">
-                                    Seu interesse foi registrado e será analisado
-                                  </p>
-                                </div>
-                                
-                                {/* Verificar se o freelancer está escalado antes de mostrar o botão de cancelar */}
-                                {(() => {
-                                  const userAllocation = event.teamAllocations?.find(
-                                    allocation => allocation.userId === user.id
-                                  );
-                                  
-                                  // Se não está alocado ou está alocado mas não confirmado, permitir cancelamento
-                                  const canCancel = !userAllocation || userAllocation.status !== 'confirmed';
-                                  
-                                  if (canCancel) {
-                                    return (
-                                      <Button
-                                        variant="outline"
-                                        onClick={handleCancelInterest}
-                                        disabled={interestLoading}
-                                        className="w-full"
-                                      >
-                                        {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
-                                      </Button>
-                                    );
-                                  } else {
-                                    return (
-                                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p className="text-sm text-blue-700 text-center">
-                                          🔒 Você foi escalado para este evento
-                                        </p>
-                                        <p className="text-xs text-blue-600 text-center mt-1">
-                                          Não é possível cancelar interesse após ser escalado
-                                        </p>
-                                      </div>
-                                    );
-                                  }
-                                })()}
-                              </div>
-                            )}
-                            
-                            {interestStatus.status === 'confirmed' && (
-                              <div className="space-y-3">
-                                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                                  <p className="text-sm text-green-700 text-center">
-                                    ✅ Seu interesse foi aprovado pelo administrador
-                                  </p>
-                                  <p className="text-xs text-green-600 text-center mt-1">
-                                    Aguardando alocação na equipe do evento
-                                  </p>
-                                </div>
-                                
-                                {/* Mostrar informações de alocação se existir */}
-                                {(() => {
-                                  const userAllocation = event.teamAllocations?.find(
-                                    allocation => allocation.userId === user.id
-                                  );
-                                  
-                                  if (userAllocation) {
-                                    return (
-                                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p className="text-sm font-medium text-blue-800 mb-2">
-                                          📋 Informações da Alocação:
-                                        </p>
-                                        <div className="space-y-1 text-xs text-blue-700">
-                                          <div className="flex justify-between">
-                                            <span>Função:</span>
-                                            <span className="font-medium">{userAllocation.assignedRole}</span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span>Status da Alocação:</span>
-                                            <Badge 
-                                              variant={userAllocation.status === 'confirmed' ? 'default' : 'secondary'}
-                                              className="text-xs"
-                                            >
-                                              {userAllocation.status === 'confirmed' ? 'Confirmado' : 
-                                               userAllocation.status === 'pending' ? 'Pendente' : 'Cancelado'}
-                                            </Badge>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span>Taxa por dia:</span>
-                                            <span className="font-medium">R$ {userAllocation.dailyRate}</span>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Verificar se pode cancelar interesse baseado no status da alocação */}
-                                        {userAllocation.status !== 'confirmed' && (
-                                          <div className="mt-3">
-                                            <Button
-                                              variant="outline"
-                                              onClick={handleCancelInterest}
-                                              disabled={interestLoading}
-                                              className="w-full"
-                                            >
-                                              {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
-                                            </Button>
-                                          </div>
-                                        )}
-                                        
-                                        {userAllocation.status === 'confirmed' && (
-                                          <div className="mt-3 p-2 bg-blue-100 border border-blue-300 rounded">
-                                            <p className="text-xs text-blue-800 text-center">
-                                              🔒 Você foi escalado para este evento. Não é possível cancelar interesse.
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  // Se não está alocado ainda, permitir cancelamento
-                                  return (
-                                    <div className="mt-3">
-                                      <Button
-                                        variant="outline"
-                                        onClick={handleCancelInterest}
-                                        disabled={interestLoading}
-                                        className="w-full"
-                                      >
-                                        {interestLoading ? 'Cancelando...' : 'Cancelar Interesse'}
-                                      </Button>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            )}
-                            
-                            {interestStatus.status === 'rejected' && (
-                              <div className="space-y-3">
-                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                  <p className="text-sm text-red-700 text-center">
-                                    ❌ Seu interesse foi rejeitado pelo administrador
-                                  </p>
-                                  <p className="text-xs text-red-600 text-center mt-1">
-                                    Entre em contato para mais informações
-                                  </p>
-                                </div>
-                                
-                                {/* Verificar se o freelancer está escalado antes de mostrar o botão de remover rejeição */}
-                                {(() => {
-                                  const userAllocation = event.teamAllocations?.find(
-                                    allocation => allocation.userId === user.id
-                                  );
-                                  
-                                  // Se não está alocado ou está alocado mas não confirmado, permitir remoção da rejeição
-                                  const canCancel = !userAllocation || userAllocation.status !== 'confirmed';
-                                  
-                                  if (canCancel) {
-                                    return (
-                                      <Button
-                                        variant="outline"
-                                        onClick={handleCancelInterest}
-                                        disabled={interestLoading}
-                                        className="w-full"
-                                      >
-                                        {interestLoading ? 'Removendo...' : 'Remover Rejeição'}
-                                      </Button>
-                                    );
-                                  } else {
-                                    return (
-                                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p className="text-sm text-blue-700 text-center">
-                                          🔒 Você foi escalado para este evento
-                                        </p>
-                                        <p className="text-xs text-blue-600 text-center mt-1">
-                                          Não é possível remover a rejeição após ser escalado
-                                        </p>
-                                      </div>
-                                    );
-                                  }
-                                })()}
-                              </div>
-                            )}
+                    {!allocationLoading && myAllocations.length === 0 && (
+                      <p className="text-sm text-gray-600">
+                        Você ainda não foi escalado para este evento. Quando o gestor escalá-lo, aparecerá aqui para
+                        confirmar disponibilidade.
+                      </p>
+                    )}
+                    {!allocationLoading &&
+                      myAllocations.map((alloc) => (
+                        <div key={alloc.id} className="space-y-3 rounded-lg border p-4">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Função</span>
+                            <span className="font-medium">{alloc.assigned_role}</span>
                           </div>
-                        );
-                      }
-                      
-                      // PRIORIDADE 2: Se não confirmou interesse, verificar se está alocado
-                      const userAllocation = event.teamAllocations?.find(
-                        allocation => allocation.userId === user.id
-                      );
-                      
-                      // Debug: Log do status real da alocação
-                      if (userAllocation) {
-                        console.log('🔍 Status real da alocação:', {
-                          status: userAllocation.status,
-                          statusType: typeof userAllocation.status,
-                          statusLength: userAllocation.status ? userAllocation.status.length : 'null/undefined',
-                          assignedRole: userAllocation.assignedRole,
-                          dailyRate: userAllocation.dailyRate,
-                          fullAllocation: userAllocation
-                        });
-                      }
-                      
-                      if (userAllocation) {
-                        return (
-                          <div className="space-y-3">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-5 w-5 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-700">
-                                Escalado para este Evento
-                              </span>
-                            </div>
-                            
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Função:</span>
-                                <span className="font-medium">{userAllocation.assignedRole}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Status da Participação:</span>
-                                <Badge 
-                                  variant={interestStatus ? 
-                                    (interestStatus.status === 'confirmed' ? 'default' : 'secondary') :
-                                    'secondary'
-                                  }
-                                  className="text-xs"
-                                >
-                                  {interestStatus ? 
-                                    (interestStatus.status === 'pending' ? 'Pendente' :
-                                     interestStatus.status === 'confirmed' ? 'Confirmado' :
-                                     interestStatus.status === 'rejected' ? 'Rejeitado' : 'Desconhecido') :
-                                    'Não confirmado'
-                                  }
-                                </Badge>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Status da Alocação:</span>
-                                <Badge 
-                                  variant={
-                                    userAllocation.status === 'confirmed' && interestStatus?.status === 'confirmed' ? 'default' :
-                                    userAllocation.status === 'confirmed' && interestStatus?.status !== 'confirmed' ? 'secondary' :
-                                    userAllocation.status === 'pending' ? 'secondary' :
-                                    userAllocation.status === 'cancelled' ? 'destructive' :
-                                    'secondary'
-                                  }
-                                  className="text-xs"
-                                >
-                                  {userAllocation.status === 'confirmed' && interestStatus?.status === 'confirmed' ? 'Confirmado' :
-                                   userAllocation.status === 'confirmed' && interestStatus?.status !== 'confirmed' ? 'Alocado pelo Admin' :
-                                   userAllocation.status === 'pending' ? 'Pendente' : 
-                                   userAllocation.status === 'cancelled' ? 'Cancelado' :
-                                   userAllocation.status || 'Desconhecido'}
-                                </Badge>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Taxa por dia:</span>
-                                <span className="font-medium">R$ {userAllocation.dailyRate}</span>
-                              </div>
-                            </div>
-                            
-                            {userAllocation.status === 'confirmed' ? (
-                              <div className="space-y-3">
-                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <p className="text-sm text-blue-700 text-center">
-                                    🎯 Você foi escalado pelo administrador para este evento
-                                  </p>
-                                  <p className="text-xs text-blue-600 text-center mt-1">
-                                    O administrador te escolheu especificamente para este evento
-                                  </p>
-                                </div>
-                                
-                                <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                                  <p className="text-xs text-yellow-700 text-center">
-                                    ⚠️ Para confirmar sua participação, clique em "Confirmar Interesse" abaixo
-                                  </p>
-                                </div>
-                                
-                                <Button
-                                  onClick={handleConfirmInterest}
-                                  disabled={interestLoading}
-                                  className="w-full bg-green-600 hover:bg-green-700"
-                                >
-                                  {interestLoading ? 'Confirmando...' : 'Confirmar Interesse'}
-                                </Button>
-                              </div>
-                            ) : userAllocation.status === 'pending' ? (
-                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                                <p className="text-sm text-amber-700 text-center">
-                                  ⏳ Aguardando confirmação do administrador
-                                </p>
-                                <p className="text-xs text-amber-600 text-center mt-1">
-                                  Você foi escalado mas ainda não confirmado
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                                <p className="text-sm text-gray-700 text-center">
-                                  📋 Status: {userAllocation.status || 'Desconhecido'}
-                                </p>
-                                <p className="text-xs text-gray-600 text-center mt-1">
-                                  Aguardando definição do status
-                                </p>
-                              </div>
-                            )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Diária</span>
+                            <span className="font-medium">R$ {Number(alloc.daily_rate)}</span>
                           </div>
-                        );
-                      }
-                      
-                      // PRIORIDADE 3: Usuário não está alocado e não confirmou interesse
-                      return (
-                        <div className="space-y-3">
-                          <p className="text-sm text-gray-600">
-                            Confirme seu interesse neste evento para que o administrador possa avaliar e gerenciar sua participação.
-                          </p>
-                          <Button
-                            onClick={handleConfirmInterest}
-                            disabled={interestLoading}
-                            className="w-full bg-green-600 hover:bg-green-700"
-                          >
-                            {interestLoading ? 'Confirmando...' : 'Confirmar Interesse'}
-                          </Button>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Status</span>
+                            <Badge variant={alloc.status === 'confirmed' ? 'default' : 'secondary'}>
+                              {alloc.status === 'pending'
+                                ? 'Aguardando sua confirmação'
+                                : alloc.status === 'confirmed'
+                                  ? 'Confirmado'
+                                  : String(alloc.status || '')}
+                            </Badge>
+                          </div>
+                          {alloc.status === 'pending' && (
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <Button
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                                disabled={allocationActionLoading}
+                                onClick={() => handleConfirmAvailability(alloc.id)}
+                              >
+                                {allocationActionLoading ? 'Enviando...' : 'Tenho disponibilidade'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                disabled={allocationActionLoading}
+                                onClick={() => handleDeclineAvailability(alloc.id)}
+                              >
+                                Não posso participar
+                              </Button>
+                            </div>
+                          )}
+                          {alloc.status === 'confirmed' && (
+                            <p className="text-xs text-green-700">
+                              Sua disponibilidade foi confirmada. O gestor pode contar com você neste evento.
+                            </p>
+                          )}
                         </div>
-                      );
-                    })()}
+                      ))}
                   </CardContent>
                 </Card>
               )}
@@ -1041,13 +782,14 @@ const EventDetail = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Equipe Prioritária</p>
                       <Badge variant="outline" className="mt-1">
-                        {event.teamPriority === 'equipe_a' ? 'Equipe A - Prioridade Máxima' : 
-                         event.teamPriority === 'equipe_b' ? 'Equipe B - Suporte' : 'Ambas as Equipes'}
+                        {event.teamPriority === 'iniciante' ? 'Iniciante' : 
+                         event.teamPriority === 'intermediario' ? 'Intermediário' : 
+                         event.teamPriority === 'avancado' ? 'Avançado' : 'Todas as Categorias'}
                       </Badge>
                     </div>
                     
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Backup Equipe B</p>
+                      <p className="text-sm font-medium text-gray-600">Permitir Backup de Outras Categorias</p>
                       <Badge variant={event.allowTeamB ? 'default' : 'secondary'} className="mt-1">
                         {event.allowTeamB ? 'Permitido' : 'Não permitido'}
                       </Badge>

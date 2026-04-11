@@ -92,8 +92,9 @@ export const removeUserFromTeam = async (userId: string): Promise<void> => {
 
 export const getTeamStatistics = async (): Promise<{
   total: number;
-  equipe_a: number;
-  equipe_b: number;
+  iniciante: number;
+  intermediario: number;
+  avancado: number;
   sem_equipe: number;
 }> => {
   try {
@@ -111,8 +112,9 @@ export const getTeamStatistics = async (): Promise<{
 
     const stats = {
       total: data?.length || 0,
-      equipe_a: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'equipe_a').length || 0,
-      equipe_b: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'equipe_b').length || 0,
+      iniciante: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'iniciante').length || 0,
+      intermediario: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'intermediario').length || 0,
+      avancado: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'avancado').length || 0,
       sem_equipe: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'sem_equipe' || !(u.freelancer_profile as any)?.team_type).length || 0,
     };
 
@@ -121,8 +123,9 @@ export const getTeamStatistics = async (): Promise<{
     console.error('Erro ao buscar estatísticas de equipe:', error);
     return {
       total: 0,
-      equipe_a: 0,
-      equipe_b: 0,
+      iniciante: 0,
+      intermediario: 0,
+      avancado: 0,
       sem_equipe: 0,
     };
   }
@@ -133,25 +136,28 @@ export const getAvailableUsersForEventWithPriority = async (
   requiredRoles: string[],
   startDate: Date,
   endDate: Date,
-  teamPriority: 'equipe_a' | 'equipe_b'
+  teamPriority: 'iniciante' | 'intermediario' | 'avancado'
 ): Promise<{
-  equipe_a: User[];
-  equipe_b: User[];
+  iniciante: User[];
+  intermediario: User[];
+  avancado: User[];
   sem_equipe: User[];
 }> => {
   try {
     // Esta funcionalidade será implementada quando tivermos a rota específica
     // Por enquanto, retornamos arrays vazios
     return {
-      equipe_a: [],
-      equipe_b: [],
+      iniciante: [],
+      intermediario: [],
+      avancado: [],
       sem_equipe: [],
     };
   } catch (error) {
     console.error('Erro ao buscar usuários com prioridade:', error);
     return {
-      equipe_a: [],
-      equipe_b: [],
+      iniciante: [],
+      intermediario: [],
+      avancado: [],
       sem_equipe: [],
     };
   }
@@ -280,28 +286,35 @@ export const getTeamWorkload = async (teamType: TeamType): Promise<{
 };
 
 export const getActiveFreelancersByTeam = async (): Promise<{
-  equipe_a: { total: number; active: number; users: User[] };
-  equipe_b: { total: number; active: number; users: User[] };
+  iniciante: { total: number; active: number; users: User[] };
+  intermediario: { total: number; active: number; users: User[] };
+  avancado: { total: number; active: number; users: User[] };
   sem_equipe: { total: number; active: number; users: User[] };
 }> => {
   try {
     // Usar as funções getUsersByTeam para garantir consistência
-    const [equipe_a_users, equipe_b_users, sem_equipe_users] = await Promise.all([
-      getUsersByTeam('equipe_a'),
-      getUsersByTeam('equipe_b'),
+    const [iniciante_users, intermediario_users, avancado_users, sem_equipe_users] = await Promise.all([
+      getUsersByTeam('iniciante'),
+      getUsersByTeam('intermediario'),
+      getUsersByTeam('avancado'),
       getUsersByTeam('sem_equipe')
     ]);
 
     return {
-      equipe_a: { 
-        total: equipe_a_users.length, 
-        active: equipe_a_users.filter(u => u.isActive).length, 
-        users: equipe_a_users 
+      iniciante: { 
+        total: iniciante_users.length, 
+        active: iniciante_users.filter(u => u.isActive).length, 
+        users: iniciante_users 
       },
-      equipe_b: { 
-        total: equipe_b_users.length, 
-        active: equipe_b_users.filter(u => u.isActive).length, 
-        users: equipe_b_users 
+      intermediario: { 
+        total: intermediario_users.length, 
+        active: intermediario_users.filter(u => u.isActive).length, 
+        users: intermediario_users 
+      },
+      avancado: { 
+        total: avancado_users.length, 
+        active: avancado_users.filter(u => u.isActive).length, 
+        users: avancado_users 
       },
       sem_equipe: { 
         total: sem_equipe_users.length, 
@@ -312,8 +325,9 @@ export const getActiveFreelancersByTeam = async (): Promise<{
   } catch (error) {
     console.error('Erro ao buscar freelancers ativos:', error);
     return {
-      equipe_a: { total: 0, active: 0, users: [] },
-      equipe_b: { total: 0, active: 0, users: [] },
+      iniciante: { total: 0, active: 0, users: [] },
+      intermediario: { total: 0, active: 0, users: [] },
+      avancado: { total: 0, active: 0, users: [] },
       sem_equipe: { total: 0, active: 0, users: [] }
     };
   }

@@ -1,8 +1,8 @@
 
 export type UserRole = 'gestor' | 'freelancer' | 'lider_freelancer';
 
-// Sistema de equipes (apenas o gestor sabe quem está em cada uma)
-export type TeamType = 'equipe_a' | 'equipe_b' | 'sem_equipe';
+// Sistema de categorias de experiência (substitui Equipe A/B)
+export type TeamType = 'iniciante' | 'intermediario' | 'avancado' | 'sem_equipe';
 
 // Tipos de eventos com valores diferentes
 export type EventType = 'normal' | 'especial';
@@ -124,13 +124,14 @@ export interface Event {
   requirements: AudioVisualRole[];
   notes?: string;
   
-  // Sistema de prioridade de equipes (APENAS PARA GESTORES)
-  teamPriority: 'equipe_a' | 'equipe_b' | 'ambas'; // Qual equipe tem prioridade
-  allowTeamB: boolean; // Se permite escalar equipe B quando A não estiver disponível
+  // Sistema de prioridade por nível de experiência (APENAS PARA GESTORES)
+  teamPriority: 'iniciante' | 'intermediario' | 'avancado' | 'ambas'; // Qual nível tem prioridade
+  allowBackupLevels: boolean; // Se permite escalar outros níveis quando o prioritário não estiver disponível
   
-  // Sistema de valores por tipo de evento
-  dailyRateTeamA: number; // Valor por diária para Equipe A
-  dailyRateTeamB: number; // Valor por diária para Equipe B
+  // Sistema de valores por tipo de evento e nível de experiência
+  dailyRateIniciante: number; // Valor por diária para Iniciante (mesmo de Intermediário)
+  dailyRateIntermediario: number; // Valor por diária para Intermediário (mesmo de Iniciante)
+  dailyRateAvancado: number; // Valor por diária para Avançado
   
   // Informações de multi-dia
   isMultiDay: boolean; // Se o evento dura múltiplos dias

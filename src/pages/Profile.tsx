@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
+import { getTeamTypeLabel } from '@/lib/utils';
+import { getApiBaseUrl, getStoredAuthToken } from '@/lib/api';
 import { 
   User as UserIcon, 
   Phone, 
@@ -141,11 +143,12 @@ const Profile = () => {
       const dataToSend = { ...profileData };
       delete dataToSend.teamType;
 
-      const response = await fetch(`http://localhost:3001/api/users/${user?.id}`, {
+      const token = getStoredAuthToken();
+      const response = await fetch(`${getApiBaseUrl()}/api/users/${user?.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('equipe-s4u-token')}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(dataToSend),
       });
@@ -345,8 +348,9 @@ const Profile = () => {
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="secondary" className="text-sm">
-                          {profileData.teamType === 'equipe_a' ? 'Equipe A (Prioridade)' : 
-                           profileData.teamType === 'equipe_b' ? 'Equipe B (Suporte)' : 
+                          {profileData.teamType === 'iniciante' ? 'Iniciante' : 
+                           profileData.teamType === 'intermediario' ? 'Intermediário' : 
+                           profileData.teamType === 'avancado' ? 'Avançado' : 
                            profileData.teamType === 'sem_equipe' ? 'Sem Equipe' : 'Não definida'}
                         </Badge>
                       </div>
@@ -626,8 +630,7 @@ const Profile = () => {
                   <p className="text-sm text-gray-500 capitalize">{profileData.role}</p>
                   {profileData.teamType && (
                     <Badge variant="secondary" className="mt-2">
-                      {profileData.teamType === 'equipe_a' ? 'Equipe A' : 
-                       profileData.teamType === 'equipe_b' ? 'Equipe B' : 'Sem Equipe'}
+                      {getTeamTypeLabel(profileData.teamType)}
                     </Badge>
                   )}
                 </div>

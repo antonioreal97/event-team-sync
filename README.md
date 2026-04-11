@@ -119,6 +119,7 @@ npm run dev
 - Equipe A (prioridade máxima)
 - Equipe B (suporte)
 - Atribuição dinâmica de usuários
+- Escalação pelo gestor via API Express: alocação pendente até o freelancer confirmar disponibilidade; em caso de recusa, o gestor é notificado para escalar outro profissional
 
 ### **✅ Sistema de Pagamentos**
 - Cálculo automático de diárias

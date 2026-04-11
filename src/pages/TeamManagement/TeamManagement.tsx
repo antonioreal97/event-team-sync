@@ -39,7 +39,7 @@ const TeamManagement = () => {
   // Dialog states
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<TeamType>('equipe_a');
+  const [selectedTeam, setSelectedTeam] = useState<TeamType>('iniciante');
   const [assignmentNotes, setAssignmentNotes] = useState('');
   
   // Estados para cadastrar freelancer
@@ -48,7 +48,7 @@ const TeamManagement = () => {
     name: '',
     email: '',
     password: '',
-    teamType: 'equipe_a' as TeamType,
+    teamType: 'iniciante' as TeamType,
     phone: '',
     address: '',
     city: '',
@@ -130,14 +130,15 @@ const TeamManagement = () => {
       ]);
 
       // Buscar usuários por equipe
-      const teamA = await getUsersByTeam('equipe_a');
-      const teamB = await getUsersByTeam('equipe_b');
+      const iniciante = await getUsersByTeam('iniciante');
+      const intermediario = await getUsersByTeam('intermediario');
+      const avancado = await getUsersByTeam('avancado');
       const unassigned = await getUsersByTeam('sem_equipe');
 
       setUsers(usersData);
       setTeamAssignments(assignmentsData);
-      setTeamAUsers(teamA);
-      setTeamBUsers(teamB);
+      setTeamAUsers(iniciante);
+      setTeamBUsers(intermediario);
       setUnassignedUsers(unassigned);
       setTeamStats(stats);
     } catch (error) {
@@ -164,12 +165,12 @@ const TeamManagement = () => {
 
       toast({
         title: 'Usuário atribuído',
-        description: `${selectedUser.name} foi atribuído à ${selectedTeam === 'equipe_a' ? 'Equipe A' : 'Equipe B'}`,
+        description: `${selectedUser.name} foi atribuído ao nível ${getTeamLabel(selectedTeam)}`,
       });
 
       setShowAssignDialog(false);
       setSelectedUser(null);
-      setSelectedTeam('equipe_a');
+      setSelectedTeam('iniciante');
       setAssignmentNotes('');
       
       // Refresh data
@@ -260,8 +261,8 @@ const TeamManagement = () => {
         if (!value) {
           return 'Tipo de equipe é obrigatório';
         }
-        if (!['equipe_a', 'equipe_b'].includes(value)) {
-          return 'Tipo de equipe deve ser "Equipe A" ou "Equipe B"';
+        if (!['iniciante', 'intermediario', 'avancado'].includes(value)) {
+          return 'Nível de experiência deve ser "Iniciante", "Intermediário" ou "Avançado"';
         }
         break;
 
@@ -510,10 +511,12 @@ const TeamManagement = () => {
 
   const getTeamColor = (teamType: TeamType) => {
     switch (teamType) {
-      case 'equipe_a':
+      case 'iniciante':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'equipe_b':
+      case 'intermediario':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'avancado':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -521,10 +524,12 @@ const TeamManagement = () => {
 
   const getTeamLabel = (teamType: TeamType) => {
     switch (teamType) {
-      case 'equipe_a':
-        return 'Equipe A (Prioridade)';
-      case 'equipe_b':
-        return 'Equipe B (Suporte)';
+      case 'iniciante':
+        return 'Iniciante';
+      case 'intermediario':
+        return 'Intermediário';
+      case 'avancado':
+        return 'Avançado';
       default:
         return 'Sem Equipe';
     }
@@ -566,7 +571,7 @@ const TeamManagement = () => {
         <div className="flex flex-col space-y-2 md:flex-row md:justify-between md:items-center">
           <div>
             <h1 className="text-2xl font-semibold">Gestão de Equipes</h1>
-            <p className="text-gray-600">Gerencie as equipes A e B para priorização de eventos</p>
+            <p className="text-gray-600">Gerencie os níveis de experiência para priorização de eventos</p>
           </div>
           <Button onClick={() => setShowCreateFreelancerDialog(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -575,30 +580,30 @@ const TeamManagement = () => {
         </div>
 
         {/* Team Statistics */}
-        {teamStats && teamStats.equipe_a !== undefined && (
+        {teamStats && teamStats.iniciante !== undefined && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Equipe A</CardTitle>
+                <CardTitle className="text-sm font-medium">Iniciante</CardTitle>
                 <Award className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{teamStats.equipe_a.active}</div>
+                <div className="text-2xl font-bold text-blue-600">{teamStats.iniciante.active}</div>
                 <p className="text-xs text-muted-foreground">
-                  {teamStats.equipe_a.active} ativos • ⭐ 0.0
+                  {teamStats.iniciante.active} ativos • ⭐ 0.0
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Equipe B</CardTitle>
+                <CardTitle className="text-sm font-medium">Intermediário</CardTitle>
                 <Users className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{teamStats.equipe_b.active}</div>
+                <div className="text-2xl font-bold text-green-600">{teamStats.intermediario.active}</div>
                 <p className="text-xs text-muted-foreground">
-                  {teamStats.equipe_b.active} ativos • ⭐ 0.0
+                  {teamStats.intermediario.active} ativos • ⭐ 0.0
                 </p>
               </CardContent>
             </Card>
@@ -627,15 +632,15 @@ const TeamManagement = () => {
 
           <TabsContent value="teams" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Equipe A */}
+              {/* Iniciante */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Award className="h-5 w-5 text-blue-600" />
-                    <span>Equipe A - Prioridade Máxima</span>
+                    <span>Iniciante</span>
                   </CardTitle>
                   <p className="text-sm text-gray-600">
-                    Freelancers com prioridade para eventos importantes
+                    Freelancers iniciantes (mesmo valor de diária do Intermediário)
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -689,22 +694,22 @@ const TeamManagement = () => {
                     ))}
                     {teamAUsers.length === 0 && (
                       <p className="text-center py-4 text-gray-500">
-                        Nenhum freelancer na Equipe A
+                        Nenhum freelancer no nível Iniciante
                       </p>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Equipe B */}
+              {/* Intermediário */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Users className="h-5 w-5 text-green-600" />
-                    <span>Equipe B - Suporte</span>
+                    <span>Intermediário</span>
                   </CardTitle>
                   <p className="text-sm text-gray-600">
-                    Freelancers para eventos secundários e suporte
+                    Freelancers intermediários (mesmo valor de diária do Iniciante)
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -758,7 +763,7 @@ const TeamManagement = () => {
                     ))}
                     {teamBUsers.length === 0 && (
                       <p className="text-center py-4 text-gray-500">
-                        Nenhum freelancer na Equipe B
+                        Nenhum freelancer no nível Intermediário
                       </p>
                     )}
                   </div>
@@ -907,8 +912,9 @@ const TeamManagement = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="equipe_a">Equipe A - Prioridade Máxima</SelectItem>
-                    <SelectItem value="equipe_b">Equipe B - Suporte</SelectItem>
+                    <SelectItem value="iniciante">Iniciante</SelectItem>
+                    <SelectItem value="intermediario">Intermediário</SelectItem>
+                    <SelectItem value="avancado">Avançado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1043,8 +1049,9 @@ const TeamManagement = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="equipe_a">Equipe A - Prioridade Máxima</SelectItem>
-                      <SelectItem value="equipe_b">Equipe B - Suporte</SelectItem>
+                      <SelectItem value="iniciante">Iniciante</SelectItem>
+                      <SelectItem value="intermediario">Intermediário</SelectItem>
+                      <SelectItem value="avancado">Avançado</SelectItem>
                     </SelectContent>
                   </Select>
                   {fieldErrors.teamType && (

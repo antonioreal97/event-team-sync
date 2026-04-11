@@ -158,8 +158,9 @@ const EditFreelancerDialog: React.FC<EditFreelancerDialogProps> = ({
                     <SelectValue placeholder="Selecione a equipe" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="equipe_a">Equipe A - Prioridade Máxima</SelectItem>
-                    <SelectItem value="equipe_b">Equipe B - Suporte</SelectItem>
+                    <SelectItem value="iniciante">Iniciante</SelectItem>
+                    <SelectItem value="intermediario">Intermediário</SelectItem>
+                    <SelectItem value="avancado">Avançado</SelectItem>
                     <SelectItem value="sem_equipe">Sem Equipe</SelectItem>
                   </SelectContent>
                 </Select>

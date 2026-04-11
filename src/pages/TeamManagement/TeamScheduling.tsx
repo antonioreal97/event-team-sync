@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event, User, AudioVisualRole, TeamAllocation } from '@/types';
-import { getAllEvents, getEventsWithInterests, getEventInterests } from '@/services/eventService';
+import { getAllEvents, getEventsWithInterests } from '@/services/eventService';
 import { getAllUsers, getAvailableUsersForEvent, searchUsers } from '@/services/userService';
 import { createTeamAllocation } from '@/services/eventService';
 import { format } from 'date-fns';
@@ -32,7 +32,6 @@ const TeamScheduling = () => {
   const [selectedRole, setSelectedRole] = useState<AudioVisualRole | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-  const [eventInterests, setEventInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [showAllocationDialog, setShowAllocationDialog] = useState(false);
@@ -72,12 +71,6 @@ const TeamScheduling = () => {
     }
   }, [selectedEvent, selectedRole]);
 
-  useEffect(() => {
-    if (selectedEvent) {
-      fetchEventInterests();
-    }
-  }, [selectedEvent]);
-
   const fetchAvailableUsers = async () => {
     if (!selectedEvent || !selectedRole) return;
     
@@ -91,17 +84,6 @@ const TeamScheduling = () => {
       setAvailableUsers(available);
     } catch (error) {
       console.error('Failed to fetch available users:', error);
-    }
-  };
-
-  const fetchEventInterests = async () => {
-    if (!selectedEvent) return;
-    
-    try {
-      const interests = await getEventInterests(selectedEvent.id);
-      setEventInterests(interests);
-    } catch (error) {
-      console.error('Failed to fetch event interests:', error);
     }
   };
 
@@ -156,7 +138,6 @@ const TeamScheduling = () => {
 
       // Refresh data
       fetchAvailableUsers();
-      fetchEventInterests();
       setShowAllocationDialog(false);
       setSelectedUser(null);
     } catch (error) {
@@ -275,73 +256,10 @@ const TeamScheduling = () => {
 
                 {selectedEvent && (
                   <div className="mt-6 space-y-6">
-                    {/* Freelancers Interessados */}
-                    <div>
-                      <h3 className="text-lg font-medium mb-4 flex items-center">
-                        <Users className="w-5 h-5 mr-2" />
-                        Freelancers Interessados ({eventInterests.length})
-                      </h3>
-                      {eventInterests.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {eventInterests.map((interest) => {
-                            const user = users.find(u => u.id === interest.user_id);
-                            if (!user) return null;
-                            
-                            return (
-                              <Card key={interest.id} className="p-4 border-l-4 border-l-blue-500">
-                                <div className="flex items-start space-x-3">
-                                  <Avatar>
-                                    <AvatarImage src={user.avatar} />
-                                    <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-sm">{user.name}</h4>
-                                    <p className="text-xs text-gray-500">{user.email}</p>
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                      {user.audioVisualRoles.map((role) => (
-                                        <Badge key={role} variant="secondary" className={getRoleColor(role)}>
-                                          {role}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                    <Badge variant="outline" className={getExperienceColor(user.experienceLevel)}>
-                                      {user.experienceLevel}
-                                    </Badge>
-                                    <div className="flex items-center space-x-2 mt-2 text-xs text-gray-600">
-                                      <MapPin className="w-3 h-3" />
-                                      <span>{user.city}, {user.state}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-1 text-xs text-gray-600">
-                                      <DollarSign className="w-3 h-3" />
-                                      <span>R$ {user.hourlyRate}/h</span>
-                                    </div>
-                                    <div className="mt-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {user.teamType === 'equipe_a' ? 'Equipe A' : 
-                                         user.teamType === 'equipe_b' ? 'Equipe B' : 'Sem Equipe'}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedUser(user);
-                                      setShowAllocationDialog(true);
-                                    }}
-                                  >
-                                    Escalar
-                                  </Button>
-                                </div>
-                              </Card>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                          <p>Nenhum freelancer interessado neste evento</p>
-                        </div>
-                      )}
+                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                      <Users className="inline w-4 h-4 mr-2 align-text-bottom" />
+                      A escalação é feita pelo gestor em <strong>Escalação de equipes</strong> (menu lateral). Os
+                      profissionais confirmam disponibilidade após serem escalados.
                     </div>
 
                     {/* Colaboradores Disponíveis (se função selecionada) */}
@@ -481,8 +399,9 @@ const TeamScheduling = () => {
                                         variant="outline" 
                                         className="text-xs px-1 py-0 border-primary/30 bg-primary/5 text-primary"
                                       >
-                                        {event.teamPriority === 'equipe_a' ? 'Equipe A' : 
-                                         event.teamPriority === 'equipe_b' ? 'Equipe B' : 'Ambas'}
+                                        {event.teamPriority === 'iniciante' ? 'Iniciante' : 
+                                         event.teamPriority === 'intermediario' ? 'Intermediário' : 
+                                         event.teamPriority === 'avancado' ? 'Avançado' : 'Todas'}
                                       </Badge>
                                     </div>
                                   </div>
@@ -507,15 +426,21 @@ const TeamScheduling = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="text-xs px-2 py-0 border-primary/30 bg-primary/5 text-primary">
-                        Equipe A
+                        Iniciante
                       </Badge>
-                      <span>Prioridade A</span>
+                      <span>Nível Iniciante</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="text-xs px-2 py-0 border-primary/30 bg-primary/5 text-primary">
-                        Equipe B
+                        Intermediário
                       </Badge>
-                      <span>Prioridade B</span>
+                      <span>Nível Intermediário</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="text-xs px-2 py-0 border-primary/30 bg-primary/5 text-primary">
+                        Avançado
+                      </Badge>
+                      <span>Nível Avançado</span>
                     </div>
                   </div>
                 </div>

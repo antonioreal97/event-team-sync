@@ -1,23 +1,29 @@
 import { EventType, TeamType, Event } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
-// Configuração de preços por tipo de evento e equipe
+// Configuração de preços por tipo de evento e nível de experiência
 const PRICING_CONFIG = {
   normal: {
-    equipe_a: 250, // R$ 250 por diária para Equipe A em eventos normais
-    equipe_b: 200, // R$ 200 por diária para Equipe B em eventos normais
+    iniciante: 200, // R$ 200 por diária para Iniciante em eventos normais (mesmo valor de Intermediário)
+    intermediario: 200, // R$ 200 por diária para Intermediário em eventos normais (mesmo valor de Iniciante)
+    avancado: 250, // R$ 250 por diária para Avançado em eventos normais
+    sem_equipe: 200, // Valor padrão para sem equipe
   },
   especial: {
-    equipe_a: 300, // R$ 300 por diária para Equipe A em eventos especiais
-    equipe_b: 250, // R$ 250 por diária para Equipe B em eventos especiais
+    iniciante: 250, // R$ 250 por diária para Iniciante em eventos especiais (mesmo valor de Intermediário)
+    intermediario: 250, // R$ 250 por diária para Intermediário em eventos especiais (mesmo valor de Iniciante)
+    avancado: 300, // R$ 300 por diária para Avançado em eventos especiais
+    sem_equipe: 250, // Valor padrão para sem equipe
   },
 };
 
 /**
- * Calcula o valor por diária baseado no tipo de evento e equipe
+ * Calcula o valor por diária baseado no tipo de evento e nível de experiência
  */
 export const calculateDailyRate = (eventType: EventType, teamType: TeamType): number => {
-  return PRICING_CONFIG[eventType][teamType];
+  // Se for sem_equipe, usar valor de iniciante como padrão
+  const level = teamType === 'sem_equipe' ? 'iniciante' : teamType;
+  return PRICING_CONFIG[eventType][level as keyof typeof PRICING_CONFIG.normal];
 };
 
 /**
@@ -62,11 +68,15 @@ export const generateEventPricingSummary = async (event: Event): Promise<{
   eventType: EventType;
   totalDays: number;
   pricing: {
-    equipe_a: {
+    iniciante: {
       dailyRate: number;
       totalPayment: number;
     };
-    equipe_b: {
+    intermediario: {
+      dailyRate: number;
+      totalPayment: number;
+    };
+    avancado: {
       dailyRate: number;
       totalPayment: number;
     };
@@ -79,17 +89,24 @@ export const generateEventPricingSummary = async (event: Event): Promise<{
     const cancellationDeadline = calculateCancellationDeadline(event.startDate);
     
     const pricing = {
-      equipe_a: {
-        dailyRate: calculateDailyRate(event.eventType, 'equipe_a'),
+      iniciante: {
+        dailyRate: calculateDailyRate(event.eventType, 'iniciante'),
         totalPayment: calculateTotalPayment(
-          calculateDailyRate(event.eventType, 'equipe_a'),
+          calculateDailyRate(event.eventType, 'iniciante'),
           totalDays
         ),
       },
-      equipe_b: {
-        dailyRate: calculateDailyRate(event.eventType, 'equipe_b'),
+      intermediario: {
+        dailyRate: calculateDailyRate(event.eventType, 'intermediario'),
         totalPayment: calculateTotalPayment(
-          calculateDailyRate(event.eventType, 'equipe_b'),
+          calculateDailyRate(event.eventType, 'intermediario'),
+          totalDays
+        ),
+      },
+      avancado: {
+        dailyRate: calculateDailyRate(event.eventType, 'avancado'),
+        totalPayment: calculateTotalPayment(
+          calculateDailyRate(event.eventType, 'avancado'),
           totalDays
         ),
       },
@@ -105,10 +122,12 @@ export const generateEventPricingSummary = async (event: Event): Promise<{
       notes.push(`Evento de ${totalDays} dias com desconto por volume`);
     }
     
-    if (event.teamPriority === 'equipe_a') {
-      notes.push('Prioridade para Equipe A');
-    } else if (event.teamPriority === 'equipe_b') {
-      notes.push('Prioridade para Equipe B');
+    if (event.teamPriority === 'iniciante') {
+      notes.push('Prioridade para nível Iniciante');
+    } else if (event.teamPriority === 'intermediario') {
+      notes.push('Prioridade para nível Intermediário');
+    } else if (event.teamPriority === 'avancado') {
+      notes.push('Prioridade para nível Avançado');
     }
 
     return {
@@ -176,8 +195,9 @@ export const generatePricingReport = async (events: Event[]): Promise<{
     };
 
     const pricingByTeam: Record<TeamType, { count: number; totalRevenue: number }> = {
-      equipe_a: { count: 0, totalRevenue: 0 },
-      equipe_b: { count: 0, totalRevenue: 0 },
+      iniciante: { count: 0, totalRevenue: 0 },
+      intermediario: { count: 0, totalRevenue: 0 },
+      avancado: { count: 0, totalRevenue: 0 },
       sem_equipe: { count: 0, totalRevenue: 0 },
     };
 
@@ -188,32 +208,41 @@ export const generatePricingReport = async (events: Event[]): Promise<{
     for (const event of events) {
       const totalDays = calculateWorkingDays(event.startDate, event.endDate);
       
-      // Calcular receita para Equipe A
-      const revenueTeamA = calculateDiscountedPayment(
-        calculateDailyRate(event.eventType, 'equipe_a'),
+      // Calcular receita para cada nível
+      const revenueIniciante = calculateDiscountedPayment(
+        calculateDailyRate(event.eventType, 'iniciante'),
         totalDays
       );
       
-      // Calcular receita para Equipe B
-      const revenueTeamB = calculateDiscountedPayment(
-        calculateDailyRate(event.eventType, 'equipe_b'),
+      const revenueIntermediario = calculateDiscountedPayment(
+        calculateDailyRate(event.eventType, 'intermediario'),
         totalDays
       );
       
-      // Assumir que o evento usa a equipe prioritária
-      const eventRevenue = event.teamPriority === 'equipe_b' ? revenueTeamB : revenueTeamA;
+      const revenueAvancado = calculateDiscountedPayment(
+        calculateDailyRate(event.eventType, 'avancado'),
+        totalDays
+      );
+      
+      // Assumir que o evento usa o nível prioritário
+      let eventRevenue = revenueIniciante;
+      if (event.teamPriority === 'intermediario') {
+        eventRevenue = revenueIntermediario;
+      } else if (event.teamPriority === 'avancado') {
+        eventRevenue = revenueAvancado;
+      }
       
       totalRevenue += eventRevenue;
-      totalDailyRates += calculateDailyRate(event.eventType, 'equipe_a');
+      totalDailyRates += calculateDailyRate(event.eventType, event.teamPriority || 'iniciante');
       
       // Contar por tipo de evento
       pricingByType[event.eventType].count++;
       pricingByType[event.eventType].totalRevenue += eventRevenue;
       
-      // Contar por equipe (assumir equipe prioritária)
+      // Contar por nível (assumir nível prioritário)
       const teamType = event.teamPriority || 'sem_equipe';
-      pricingByTeam[teamType].count++;
-      pricingByTeam[teamType].totalRevenue += eventRevenue;
+      pricingByTeam[teamType as TeamType].count++;
+      pricingByTeam[teamType as TeamType].totalRevenue += eventRevenue;
       
       eventRevenues.push({
         eventId: event.id,
@@ -290,13 +319,13 @@ export const getPricingConfig = () => {
 };
 
 /**
- * Calcula diferença percentual entre preços de equipes
+ * Calcula diferença percentual entre preços de níveis de experiência
  */
 export const calculateTeamPriceDifference = (eventType: EventType): number => {
-  const teamAPrice = PRICING_CONFIG[eventType].equipe_a;
-  const teamBPrice = PRICING_CONFIG[eventType].equipe_b;
+  const avancadoPrice = PRICING_CONFIG[eventType].avancado;
+  const iniciantePrice = PRICING_CONFIG[eventType].iniciante;
   
-  return ((teamAPrice - teamBPrice) / teamBPrice) * 100;
+  return ((avancadoPrice - iniciantePrice) / iniciantePrice) * 100;
 };
 
 /**

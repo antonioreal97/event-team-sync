@@ -169,3 +169,29 @@
 .pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* Estilos customizados para a scrollbar do sidebar */
+aside nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+aside nav::-webkit-scrollbar-track {
+  background: hsl(var(--sidebar-background));
+  border-radius: 4px;
+}
+
+aside nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-border));
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+aside nav::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--sidebar-primary));
+}
+
+/* Para navegadores Firefox */
+aside nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-border)) hsl(var(--sidebar-background));
+}
