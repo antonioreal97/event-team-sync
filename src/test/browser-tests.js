@@ -277,3 +277,4 @@ window.FrontendTester = FrontendTester;
 window.tester = tester;
 
 console.log('🧪 FrontendTester carregado! Use tester.runAllTests() para executar todos os testes.');
+

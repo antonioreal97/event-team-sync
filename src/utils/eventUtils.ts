@@ -62,9 +62,10 @@ export const transformEventFromBackend = (backendEvent: any): Event => {
     requirements: backendEvent.requirements || [],
     notes: backendEvent.notes,
     teamPriority: backendEvent.team_priority,
-    allowTeamB: backendEvent.allow_team_b,
-    dailyRateTeamA: backendEvent.daily_rate_team_a,
-    dailyRateTeamB: backendEvent.daily_rate_team_b,
+    allowBackupLevels: backendEvent.allow_backup_levels ?? backendEvent.allow_team_b ?? true, // Compatibilidade
+    dailyRateIniciante: backendEvent.daily_rate_iniciante ?? backendEvent.daily_rate_team_b ?? 200, // Compatibilidade
+    dailyRateIntermediario: backendEvent.daily_rate_intermediario ?? backendEvent.daily_rate_team_b ?? 200, // Compatibilidade
+    dailyRateAvancado: backendEvent.daily_rate_avancado ?? backendEvent.daily_rate_team_a ?? 250, // Compatibilidade
     isMultiDay: backendEvent.is_multi_day,
     totalDays: backendEvent.total_days,
     workingDays: backendEvent.working_days || [],

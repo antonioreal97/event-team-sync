@@ -1,7 +1,9 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch, getApiBaseUrl, getStoredAuthToken, setStoredAuthToken } from '@/lib/api';
+import { mapApiProfileRowToUser } from '@/lib/mapApiProfileToUser';
 
 interface AuthContextType {
   user: User | null;
@@ -23,224 +25,157 @@ export const useAuth = () => {
   return context;
 };
 
+function demoUserFromToken(token: string): User | null {
+  if (token === 'demo-token-admin') {
+    return {
+      id: '00000000-0000-0000-0000-000000000001',
+      name: 'Administrador',
+      email: 'admin@frela.com',
+      role: 'gestor',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      experienceLevel: 'expert',
+      audioVisualRoles: [],
+      certifications: [],
+      equipment: [],
+      languages: [],
+      totalEventsAttended: 0,
+      totalEarnings: 0,
+    };
+  }
+  if (token === 'demo-token-freelancer') {
+    return {
+      id: '00000000-0000-0000-0000-000000000002',
+      name: 'Freelancer Demo',
+      email: 'freelancer@frela.com',
+      role: 'freelancer',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      teamType: 'equipe_a',
+      phone: '(11) 99999-9999',
+      address: 'Rua Demo, 123',
+      city: 'São Paulo',
+      state: 'SP',
+      cpf: '000.000.000-00',
+      hourlyRate: 50,
+      dailyRate: 400,
+      experienceLevel: 'intermediario',
+      audioVisualRoles: ['camera', 'audio'],
+      bio: 'Freelancer especializado em audiovisual',
+      certifications: [],
+      equipment: [],
+      languages: ['Português', 'Inglês'],
+      totalEventsAttended: 5,
+      totalEarnings: 2000,
+      averageRating: 4.5,
+    };
+  }
+  if (token === 'demo-token-lider') {
+    return {
+      id: '00000000-0000-0000-0000-000000000003',
+      name: 'Líder Freelancer',
+      email: 'lider@frela.com',
+      role: 'lider_freelancer',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      teamType: 'equipe_a',
+      phone: '(11) 98888-8888',
+      address: 'Rua Líder, 456',
+      city: 'São Paulo',
+      state: 'SP',
+      cpf: '111.111.111-11',
+      hourlyRate: 60,
+      dailyRate: 500,
+      experienceLevel: 'avancado',
+      audioVisualRoles: ['director', 'producer'],
+      bio: 'Líder de equipe especializado em gestão de projetos audiovisuais',
+      certifications: [],
+      equipment: [],
+      languages: ['Português', 'Inglês', 'Espanhol'],
+      totalEventsAttended: 15,
+      totalEarnings: 7500,
+      averageRating: 4.8,
+    };
+  }
+  return null;
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
-      }
-      setLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+  const loadUserFromApiToken = useCallback(async () => {
+    const data = await apiFetch<{ user: Record<string, unknown> }>('/users/profile/me');
+    setUser(mapApiProfileRowToUser(data.user));
   }, []);
 
-  const loadUserProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select(`
-          *,
-          freelancer_profiles (*)
-        `)
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      if (profile) {
-        const freelancerProfile = profile.freelancer_profiles?.[0];
-        
-        const userData: User = {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role as 'gestor' | 'freelancer' | 'lider_freelancer',
-          avatar: profile.avatar,
-          isActive: profile.is_active,
-          createdAt: profile.created_at,
-          updatedAt: profile.updated_at,
-          teamType: freelancerProfile?.team_type as 'equipe_a' | 'equipe_b' | 'sem_equipe' | undefined,
-          phone: freelancerProfile?.phone,
-          address: freelancerProfile?.address,
-          city: freelancerProfile?.city,
-          state: freelancerProfile?.state,
-          cpf: freelancerProfile?.cpf,
-          hourlyRate: freelancerProfile?.hourly_rate,
-          dailyRate: freelancerProfile?.daily_rate,
-          experienceLevel: (freelancerProfile?.experience_level as 'iniciante' | 'intermediario' | 'avancado' | 'expert') || 'iniciante',
-          audioVisualRoles: (freelancerProfile?.audio_visual_roles as ('camera' | 'audio' | 'lighting' | 'director' | 'producer' | 'assistant' | 'technician' | 'streaming' | 'editing')[]) || [],
-          bio: freelancerProfile?.bio,
-          portfolio: freelancerProfile?.portfolio,
-          linkedin: freelancerProfile?.linkedin,
-          instagram: freelancerProfile?.instagram,
-          website: freelancerProfile?.website,
-          previousExperience: freelancerProfile?.previous_experience,
-          certifications: freelancerProfile?.certifications || [],
-          equipment: freelancerProfile?.equipment || [],
-          languages: freelancerProfile?.languages || [],
-          totalEventsAttended: freelancerProfile?.total_events_attended || 0,
-          totalEarnings: freelancerProfile?.total_earnings || 0,
-          averageRating: freelancerProfile?.average_rating,
-        };
-        setUser(userData);
+  useEffect(() => {
+    const bootstrap = async () => {
+      const token = getStoredAuthToken();
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
+      if (token.startsWith('demo-token-')) {
+        const demo = demoUserFromToken(token);
+        setUser(demo);
+        setLoading(false);
+        return;
+      }
+      try {
+        await loadUserFromApiToken();
+      } catch {
+        setStoredAuthToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void bootstrap();
+  }, [loadUserFromApiToken]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Demo login for development - create demo users with valid UUIDs
       if (email === 'admin@frela.com' && password === 'admin123') {
-        const demoUser: User = {
-          id: '00000000-0000-0000-0000-000000000001', // Valid UUID format
-          name: 'Administrador',
-          email: 'admin@frela.com',
-          role: 'gestor',
-          avatar: null,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          teamType: undefined,
-          phone: null,
-          address: null,
-          city: null,
-          state: null,
-          cpf: null,
-          hourlyRate: null,
-          dailyRate: null,
-          experienceLevel: 'expert',
-          audioVisualRoles: [],
-          bio: null,
-          portfolio: null,
-          linkedin: null,
-          instagram: null,
-          website: null,
-          previousExperience: null,
-          certifications: [],
-          equipment: [],
-          languages: [],
-          totalEventsAttended: 0,
-          totalEarnings: 0,
-          averageRating: undefined,
-        };
-        setUser(demoUser);
-        // Armazenar token demo no localStorage para autenticação
-        localStorage.setItem('token', 'demo-token-admin');
+        const u = demoUserFromToken('demo-token-admin')!;
+        setUser(u);
+        setStoredAuthToken('demo-token-admin');
         return;
       }
-
       if (email === 'freelancer@frela.com' && password === 'freelancer123') {
-        const demoUser: User = {
-          id: '00000000-0000-0000-0000-000000000002', // Valid UUID format
-          name: 'Freelancer Demo',
-          email: 'freelancer@frela.com',
-          role: 'freelancer',
-          avatar: null,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          teamType: 'equipe_a',
-          phone: '(11) 99999-9999',
-          address: 'Rua Demo, 123',
-          city: 'São Paulo',
-          state: 'SP',
-          cpf: '000.000.000-00',
-          hourlyRate: 50,
-          dailyRate: 400,
-          experienceLevel: 'intermediario',
-          audioVisualRoles: ['camera', 'audio'],
-          bio: 'Freelancer especializado em audiovisual',
-          portfolio: null,
-          linkedin: null,
-          instagram: null,
-          website: null,
-          previousExperience: null,
-          certifications: [],
-          equipment: [],
-          languages: ['Português', 'Inglês'],
-          totalEventsAttended: 5,
-          totalEarnings: 2000,
-          averageRating: 4.5,
-        };
-        setUser(demoUser);
-        // Armazenar token demo no localStorage para autenticação
-        localStorage.setItem('token', 'demo-token-freelancer');
+        const u = demoUserFromToken('demo-token-freelancer')!;
+        setUser(u);
+        setStoredAuthToken('demo-token-freelancer');
         return;
       }
-
       if (email === 'lider@frela.com' && password === 'lider123') {
-        const demoUser: User = {
-          id: '00000000-0000-0000-0000-000000000003', // Valid UUID format
-          name: 'Líder Freelancer',
-          email: 'lider@frela.com',
-          role: 'lider_freelancer',
-          avatar: null,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          teamType: 'equipe_a',
-          phone: '(11) 98888-8888',
-          address: 'Rua Líder, 456',
-          city: 'São Paulo',
-          state: 'SP',
-          cpf: '111.111.111-11',
-          hourlyRate: 60,
-          dailyRate: 500,
-          experienceLevel: 'avancado',
-          audioVisualRoles: ['director', 'producer'],
-          bio: 'Líder de equipe especializado em gestão de projetos audiovisuais',
-          portfolio: null,
-          linkedin: null,
-          instagram: null,
-          website: null,
-          previousExperience: null,
-          certifications: [],
-          equipment: [],
-          languages: ['Português', 'Inglês', 'Espanhol'],
-          totalEventsAttended: 15,
-          totalEarnings: 7500,
-          averageRating: 4.8,
-        };
-        setUser(demoUser);
-        // Armazenar token demo no localStorage para autenticação
-        localStorage.setItem('token', 'demo-token-lider');
+        const u = demoUserFromToken('demo-token-lider')!;
+        setUser(u);
+        setStoredAuthToken('demo-token-lider');
         return;
       }
 
-      // For production, use Supabase authentication
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const loginRes = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-
-      if (error) throw error;
-
-      if (data.user) {
-        await loadUserProfile(data.user.id);
+      const loginBody = (await loginRes.json()) as { token?: string; error?: string };
+      if (!loginRes.ok) {
+        throw new Error(loginBody.error || 'Falha no login');
       }
+      if (!loginBody.token) {
+        throw new Error('Resposta de login sem token');
+      }
+      setStoredAuthToken(loginBody.token);
+      await loadUserFromApiToken();
+      await supabase.auth.signOut().catch(() => {});
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -250,9 +185,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem('token');
+    setStoredAuthToken(null);
     setUser(null);
+    await supabase.auth.signOut().catch(() => {});
   };
 
   const isGestor = user?.role === 'gestor';

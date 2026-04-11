@@ -1,6 +1,8 @@
 import { Event } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllNotifications, createNotification } from '@/services/notificationService';
+import { apiAllocateUser, apiGetPlanningEvents } from '@/services/teamAllocationApiService';
+import { transformEventFromBackend } from '@/utils/eventUtils';
 
 // Event service functions - Conectado ao Supabase
 export const getAllEvents = async (): Promise<Event[]> => {
@@ -54,9 +56,10 @@ export const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'u
         requirements: eventData.requirements,
         notes: eventData.notes,
         team_priority: eventData.teamPriority,
-        allow_team_b: eventData.allowTeamB,
-        daily_rate_team_a: eventData.dailyRateTeamA,
-        daily_rate_team_b: eventData.dailyRateTeamB,
+        allow_backup_levels: eventData.allowBackupLevels,
+        daily_rate_iniciante: eventData.dailyRateIniciante,
+        daily_rate_intermediario: eventData.dailyRateIntermediario,
+        daily_rate_avancado: eventData.dailyRateAvancado,
         is_multi_day: eventData.isMultiDay,
         total_days: eventData.totalDays,
         working_days: eventData.workingDays,
@@ -90,9 +93,10 @@ export const updateEvent = async (id: string, eventData: Partial<Event>): Promis
     if (eventData.requirements !== undefined) updateData.requirements = eventData.requirements;
     if (eventData.notes !== undefined) updateData.notes = eventData.notes;
     if (eventData.teamPriority !== undefined) updateData.team_priority = eventData.teamPriority;
-    if (eventData.allowTeamB !== undefined) updateData.allow_team_b = eventData.allowTeamB;
-    if (eventData.dailyRateTeamA !== undefined) updateData.daily_rate_team_a = eventData.dailyRateTeamA;
-    if (eventData.dailyRateTeamB !== undefined) updateData.daily_rate_team_b = eventData.dailyRateTeamB;
+    if (eventData.allowBackupLevels !== undefined) updateData.allow_backup_levels = eventData.allowBackupLevels;
+    if (eventData.dailyRateIniciante !== undefined) updateData.daily_rate_iniciante = eventData.dailyRateIniciante;
+    if (eventData.dailyRateIntermediario !== undefined) updateData.daily_rate_intermediario = eventData.dailyRateIntermediario;
+    if (eventData.dailyRateAvancado !== undefined) updateData.daily_rate_avancado = eventData.dailyRateAvancado;
     if (eventData.isMultiDay !== undefined) updateData.is_multi_day = eventData.isMultiDay;
     if (eventData.totalDays !== undefined) updateData.total_days = eventData.totalDays;
     if (eventData.workingDays !== undefined) updateData.working_days = eventData.workingDays;
@@ -146,9 +150,10 @@ function mapDatabaseEventToEvent(dbEvent: any): Event {
     requirements: dbEvent.requirements || [],
     notes: dbEvent.notes,
     teamPriority: dbEvent.team_priority,
-    allowTeamB: dbEvent.allow_team_b,
-    dailyRateTeamA: dbEvent.daily_rate_team_a,
-    dailyRateTeamB: dbEvent.daily_rate_team_b,
+    allowBackupLevels: dbEvent.allow_backup_levels ?? dbEvent.allow_team_b ?? true, // Compatibilidade com dados antigos
+    dailyRateIniciante: dbEvent.daily_rate_iniciante ?? dbEvent.daily_rate_team_b ?? 200, // Compatibilidade
+    dailyRateIntermediario: dbEvent.daily_rate_intermediario ?? dbEvent.daily_rate_team_b ?? 200, // Compatibilidade
+    dailyRateAvancado: dbEvent.daily_rate_avancado ?? dbEvent.daily_rate_team_a ?? 250, // Compatibilidade
     isMultiDay: dbEvent.is_multi_day,
     totalDays: dbEvent.total_days,
     workingDays: dbEvent.working_days || [],
@@ -246,19 +251,8 @@ export const createTeamAllocation = async (allocationData: {
   assignedRole: string;
   totalDays: number;
   notes?: string;
-}): Promise<any> => {
-  try {
-    // This will be implemented when we add team allocation tables
-    console.log('createTeamAllocation called with:', allocationData);
-    return {
-      id: Date.now().toString(),
-      ...allocationData,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('Erro ao alocar freelancer:', error);
-    throw error;
-  }
+}): Promise<{ allocation: Record<string, unknown> }> => {
+  return apiAllocateUser(allocationData);
 };
 
 // User events
@@ -281,22 +275,17 @@ export const getUserEvents = async (user: any): Promise<Event[]> => {
 // Events with interests
 export const getEventsWithInterests = async (): Promise<Event[]> => {
   try {
-    // This will be implemented when we add event interest functionality
-    return await getAllEvents();
+    const raw = await apiGetPlanningEvents();
+    return raw.map((e) => transformEventFromBackend(e));
   } catch (error) {
-    console.error('Erro ao buscar eventos com interesses:', error);
+    console.error('Erro ao buscar eventos em planejamento:', error);
     return [];
   }
 };
 
-export const getEventInterests = async (eventId: string): Promise<any[]> => {
-  try {
-    // This will be implemented when we add event interest functionality
-    return [];
-  } catch (error) {
-    console.error('Erro ao buscar interesses do evento:', error);
-    return [];
-  }
+/** Legado: interesse voluntário removido; retorna lista vazia. */
+export const getEventInterests = async (_eventId: string): Promise<any[]> => {
+  return [];
 };
 
 export const getUpcomingEvents = async (days: number = 30): Promise<Event[]> => {

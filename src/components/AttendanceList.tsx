@@ -224,7 +224,11 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
                     <p className="text-sm text-gray-600 capitalize">{allocation.assignedRole}</p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {allocation.teamType === 'equipe_a' ? 'Equipe A' : 'Equipe B'}
+                        {allocation.teamType === 'iniciante' ? 'Iniciante' : 
+                         allocation.teamType === 'intermediario' ? 'Intermediário' : 
+                         allocation.teamType === 'avancado' ? 'Avançado' : 
+                         allocation.teamType === 'equipe_a' ? 'Avançado' : 
+                         allocation.teamType === 'equipe_b' ? 'Iniciante' : 'Sem Equipe'}
                       </Badge>
                       <Badge className={`text-xs ${getStatusColor(allocation.attendance.status)}`}>
                         {getStatusIcon(allocation.attendance.status)}

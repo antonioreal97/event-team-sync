@@ -11,9 +11,10 @@ import { getTeamStatistics, getActiveFreelancersByTeam, isEventTeamFullyConfirme
 import { filterEventForUser, getEventDisplayInfo, getEventDescription } from '@/services/eventVisibilityService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, MapPin, Clock, Users, DollarSign, TrendingUp, Award, UserCheck, Zap, Sparkles, Target } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, DollarSign, TrendingUp, Award, UserCheck, Zap, Sparkles, Target, UserPlus } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import AppLayout from '@/components/AppLayout';
+import { getTeamTypeLabel, getTeamTypeDescription } from '@/lib/utils';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -189,7 +190,7 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           {isGestor ? (
             // Estatísticas para gestores
             <>
@@ -210,22 +211,50 @@ const Dashboard = () => {
 
               <Card className="card-gradient border-glow hover:shadow-neon-lg transition-all duration-300 card-hover">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                  <CardTitle className="text-sm font-medium text-foreground">Equipe A</CardTitle>
+                  <CardTitle className="text-sm font-medium text-foreground">Colaboradores Cadastrados</CardTitle>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    {teamStats?.total || 
+                     (activeFreelancers ? 
+                       (activeFreelancers.iniciante?.total || 0) + 
+                       (activeFreelancers.intermediario?.total || 0) + 
+                       (activeFreelancers.avancado?.total || 0) + 
+                       (activeFreelancers.sem_equipe?.total || 0) 
+                       : 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {activeFreelancers ? 
+                      ((activeFreelancers.iniciante?.active || 0) + 
+                       (activeFreelancers.intermediario?.active || 0) + 
+                       (activeFreelancers.avancado?.active || 0) + 
+                       (activeFreelancers.sem_equipe?.active || 0)) 
+                      : 0} ativos
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="card-gradient border-glow hover:shadow-neon-lg transition-all duration-300 card-hover">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-sm font-medium text-foreground">Iniciante</CardTitle>
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <Users className="h-5 w-5 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary mb-1">
-                    {activeFreelancers?.equipe_a?.total || teamStats?.equipeA || 0}
+                    {activeFreelancers?.iniciante?.total || teamStats?.iniciante || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {activeFreelancers?.equipe_a?.active || teamStats?.equipeAActive || 0} ativos
+                    {activeFreelancers?.iniciante?.active || 0} ativos
                   </p>
-                  {activeFreelancers?.equipe_a?.users && activeFreelancers.equipe_a.users.length > 0 && (
+                  {activeFreelancers?.iniciante?.users && activeFreelancers.iniciante.users.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="text-xs font-medium text-primary">Freelancers Ativos:</p>
-                      {activeFreelancers.equipe_a.users.slice(0, 3).map((freelancer: User) => (
+                      {activeFreelancers.iniciante.users.slice(0, 3).map((freelancer: User) => (
                         <div key={freelancer.id} className="flex items-center space-x-2">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           <span className="text-xs text-muted-foreground truncate">
@@ -233,9 +262,9 @@ const Dashboard = () => {
                           </span>
                         </div>
                       ))}
-                      {activeFreelancers.equipe_a.users.length > 3 && (
+                      {activeFreelancers.iniciante.users.length > 3 && (
                         <p className="text-xs text-muted-foreground">
-                          +{activeFreelancers.equipe_a.users.length - 3} mais
+                          +{activeFreelancers.iniciante.users.length - 3} mais
                         </p>
                       )}
                     </div>
@@ -245,22 +274,22 @@ const Dashboard = () => {
 
               <Card className="card-gradient border-glow hover:shadow-neon-lg transition-all duration-300 card-hover">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                  <CardTitle className="text-sm font-medium text-foreground">Equipe B</CardTitle>
+                  <CardTitle className="text-sm font-medium text-foreground">Intermediário</CardTitle>
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <Users className="h-5 w-5 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary mb-1">
-                    {activeFreelancers?.equipe_b?.total || teamStats?.equipeB || 0}
+                    {activeFreelancers?.intermediario?.total || teamStats?.intermediario || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {activeFreelancers?.equipe_b?.active || teamStats?.equipeBActive || 0} ativos
+                    {activeFreelancers?.intermediario?.active || 0} ativos
                   </p>
-                  {activeFreelancers?.equipe_b?.users && activeFreelancers.equipe_b.users.length > 0 && (
+                  {activeFreelancers?.intermediario?.users && activeFreelancers.intermediario.users.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="text-xs font-medium text-primary">Freelancers Ativos:</p>
-                      {activeFreelancers.equipe_b.users.slice(0, 3).map((freelancer: User) => (
+                      {activeFreelancers.intermediario.users.slice(0, 3).map((freelancer: User) => (
                         <div key={freelancer.id} className="flex items-center space-x-2">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           <span className="text-xs text-muted-foreground truncate">
@@ -268,9 +297,44 @@ const Dashboard = () => {
                           </span>
                         </div>
                       ))}
-                      {activeFreelancers.equipe_b.users.length > 3 && (
+                      {activeFreelancers.intermediario.users.length > 3 && (
                         <p className="text-xs text-muted-foreground">
-                          +{activeFreelancers.equipe_b.users.length - 3} mais
+                          +{activeFreelancers.intermediario.users.length - 3} mais
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="card-gradient border-glow hover:shadow-neon-lg transition-all duration-300 card-hover">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-sm font-medium text-foreground">Avançado</CardTitle>
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    {activeFreelancers?.avancado?.total || teamStats?.avancado || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {activeFreelancers?.avancado?.active || 0} ativos
+                  </p>
+                  {activeFreelancers?.avancado?.users && activeFreelancers.avancado.users.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium text-primary">Freelancers Ativos:</p>
+                      {activeFreelancers.avancado.users.slice(0, 3).map((freelancer: User) => (
+                        <div key={freelancer.id} className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {freelancer.name}
+                          </span>
+                        </div>
+                      ))}
+                      {activeFreelancers.avancado.users.length > 3 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{activeFreelancers.avancado.users.length - 3} mais
                         </p>
                       )}
                     </div>
@@ -320,10 +384,10 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary mb-1">
-                    {user?.teamType === 'equipe_a' ? 'Equipe A' : 'Equipe B'}
+                    {getTeamTypeLabel(user?.teamType)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {user?.teamType === 'equipe_a' ? 'Prioridade máxima' : 'Suporte'}
+                    {getTeamTypeDescription(user?.teamType)}
                   </p>
                 </CardContent>
               </Card>
@@ -484,8 +548,9 @@ const Dashboard = () => {
                           </p>
                           <div className="flex items-center space-x-2 mt-2">
                             <Badge variant="outline" className="text-xs border-primary/20 bg-primary/10 text-primary">
-                              {event.teamPriority === 'equipe_a' ? 'Prioridade A' : 
-                               event.teamPriority === 'equipe_b' ? 'Prioridade B' : 'Ambas'}
+                              {event.teamPriority === 'iniciante' ? 'Iniciante' : 
+                               event.teamPriority === 'intermediario' ? 'Intermediário' : 
+                               event.teamPriority === 'avancado' ? 'Avançado' : 'Todas'}
                             </Badge>
                             {event.allowTeamB && (
                               <Badge variant="outline" className="text-xs border-accent/20 bg-accent/10 text-accent">

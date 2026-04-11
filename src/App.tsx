@@ -71,7 +71,8 @@ const AppRoutes = () => {
       <Route path="/team-management" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
       <Route path="/team-scheduling" element={<ProtectedRoute><TeamScheduling /></ProtectedRoute>} />
       <Route path="/payment-management" element={<ProtectedRoute><PaymentManagement /></ProtectedRoute>} />
-      <Route path="/event-interest-management" element={<ProtectedRoute><EventInterestManagement /></ProtectedRoute>} />
+      <Route path="/pending-allocations" element={<ProtectedRoute><EventInterestManagement /></ProtectedRoute>} />
+      <Route path="/event-interest-management" element={<Navigate to="/pending-allocations" replace />} />
       <Route path="/team-escalation" element={<ProtectedRoute><TeamEscalation /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

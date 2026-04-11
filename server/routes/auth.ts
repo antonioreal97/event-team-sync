@@ -52,9 +52,9 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     { expiresIn: '24h' }
   );
 
-  // Buscar perfil de freelancer se aplicável
+  // Buscar perfil de freelancer / líder freelancer
   let freelancerProfile = null;
-  if (user.role === 'freelancer') {
+  if (user.role === 'freelancer' || user.role === 'lider_freelancer') {
     const profileResult = await pool.query(
       'SELECT * FROM freelancer_profiles WHERE user_id = $1',
       [user.id]
