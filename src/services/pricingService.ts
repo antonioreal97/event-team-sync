@@ -233,7 +233,8 @@ export const generatePricingReport = async (events: Event[]): Promise<{
       }
       
       totalRevenue += eventRevenue;
-      totalDailyRates += calculateDailyRate(event.eventType, event.teamPriority || 'iniciante');
+      const priorityForRate = (event.teamPriority && event.teamPriority !== 'ambas') ? event.teamPriority : 'iniciante';
+      totalDailyRates += calculateDailyRate(event.eventType, priorityForRate as 'iniciante' | 'intermediario' | 'avancado');
       
       // Contar por tipo de evento
       pricingByType[event.eventType].count++;
