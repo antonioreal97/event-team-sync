@@ -163,7 +163,7 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
       for (const [k, v] of Object.entries(body || {})) {
         if (map[k]) updates[map[k]] = v;
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('profiles').update(updates).eq('user_id', segs[1])
         .select().maybeSingle();
       if (error) throw error;
@@ -196,12 +196,12 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
     if (method === 'POST' && !segs[1]) {
       const { data: { user } } = await supabase.auth.getUser();
       const row = { ...eventToDbRow(body), created_by: user?.id };
-      const { data, error } = await supabase.from('events').insert(row).select().maybeSingle();
+      const { data, error } = await (supabase as any).from('events').insert(row).select().maybeSingle();
       if (error) throw error;
       return { event: data };
     }
     if (method === 'PUT' && segs[1] && !segs[2]) {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('events').update(eventToDbRow(body)).eq('id', segs[1])
         .select().maybeSingle();
       if (error) throw error;
