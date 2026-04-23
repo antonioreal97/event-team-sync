@@ -21,7 +21,7 @@ import {
   removeUserFromTeam,
   getActiveFreelancersByTeam
 } from '@/services/teamService';
-import { Users, Star, Award, UserPlus, UserMinus, Eye, EyeOff, Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Users, Star, Award, UserPlus, UserMinus, Eye, EyeOff, Plus, Edit, Trash2, Shield, Trophy } from 'lucide-react';
 import EditFreelancerDialog from '@/components/EditFreelancerDialog';
 
 const TeamManagement = () => {
@@ -32,6 +32,7 @@ const TeamManagement = () => {
   const [teamAssignments, setTeamAssignments] = useState<TeamAssignment[]>([]);
   const [teamAUsers, setTeamAUsers] = useState<User[]>([]);
   const [teamBUsers, setTeamBUsers] = useState<User[]>([]);
+  const [teamAvancadoUsers, setTeamAvancadoUsers] = useState<User[]>([]);
   const [unassignedUsers, setUnassignedUsers] = useState<User[]>([]);
   const [teamStats, setTeamStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -139,6 +140,7 @@ const TeamManagement = () => {
       setTeamAssignments(assignmentsData);
       setTeamAUsers(iniciante);
       setTeamBUsers(intermediario);
+      setTeamAvancadoUsers(avancado);
       setUnassignedUsers(unassigned);
       setTeamStats(stats);
     } catch (error) {
@@ -581,7 +583,7 @@ const TeamManagement = () => {
 
         {/* Team Statistics */}
         {teamStats && teamStats.iniciante !== undefined && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Iniciante</CardTitle>
@@ -610,6 +612,19 @@ const TeamManagement = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avançado</CardTitle>
+                <Trophy className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">{teamStats.avancado?.active ?? 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {(teamStats.avancado?.active ?? 0)} ativos • ⭐ 0.0
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Sem Equipe</CardTitle>
                 <UserPlus className="h-4 w-4 text-gray-600" />
               </CardHeader>
@@ -631,7 +646,7 @@ const TeamManagement = () => {
           </TabsList>
 
           <TabsContent value="teams" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Iniciante */}
               <Card>
                 <CardHeader>
@@ -764,6 +779,75 @@ const TeamManagement = () => {
                     {teamBUsers.length === 0 && (
                       <p className="text-center py-4 text-gray-500">
                         Nenhum freelancer no nível Intermediário
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Avançado */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Trophy className="h-5 w-5 text-amber-600" />
+                    <span>Avançado</span>
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Freelancers avançados (prioridade em eventos conforme política da operação)
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {teamAvancadoUsers.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Avatar>
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h4 className="font-medium text-sm">{user.name}</h4>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge variant="secondary" className={getExperienceColor(user.experienceLevel)}>
+                                {user.experienceLevel}
+                              </Badge>
+                              {user.averageRating && (
+                                <div className="flex items-center text-xs text-gray-600">
+                                  <Star className="w-3 h-3 mr-1 fill-current text-yellow-400" />
+                                  {user.averageRating}
+                                </div>
+                              )}
+                            </div>
+                            {user.dailyRate && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                R$ {user.dailyRate}/dia
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                            className="text-blue-600 hover:text-blue-700"
+                            title="Gerenciar Acesso"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveUser(user.id, user.name)}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {teamAvancadoUsers.length === 0 && (
+                      <p className="text-center py-4 text-gray-500">
+                        Nenhum freelancer no nível Avançado
                       </p>
                     )}
                   </div>
