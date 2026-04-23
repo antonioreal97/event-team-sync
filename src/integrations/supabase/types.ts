@@ -807,7 +807,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          audio_visual_roles: string[] | null
+          avatar: string | null
+          average_rating: number | null
+          bio: string | null
+          created_at: string | null
+          experience_level:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          id: string | null
+          is_active: boolean | null
+          languages: string[] | null
+          name: string | null
+          team_type: Database["public"]["Enums"]["team_type"] | null
+          total_events_attended: number | null
+          user_id: string | null
+        }
+        Insert: {
+          audio_visual_roles?: string[] | null
+          avatar?: string | null
+          average_rating?: number | null
+          bio?: string | null
+          created_at?: string | null
+          experience_level?:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          id?: string | null
+          is_active?: boolean | null
+          languages?: string[] | null
+          name?: string | null
+          team_type?: Database["public"]["Enums"]["team_type"] | null
+          total_events_attended?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          audio_visual_roles?: string[] | null
+          avatar?: string | null
+          average_rating?: number | null
+          bio?: string | null
+          created_at?: string | null
+          experience_level?:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          id?: string | null
+          is_active?: boolean | null
+          languages?: string[] | null
+          name?: string | null
+          team_type?: Database["public"]["Enums"]["team_type"] | null
+          total_events_attended?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
