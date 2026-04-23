@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role?: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   isGestor: boolean;
   isFreelancer: boolean;
@@ -77,13 +77,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) throw new Error(error.message);
   };
 
-  const signUp = async (email: string, password: string, name: string, role = 'freelancer') => {
+  const signUp = async (email: string, password: string, name: string) => {
+    // Self-signup always creates a freelancer account. Role elevation must be done
+    // by a gestor through the admin-create-user edge function.
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { name, role },
+        data: { name },
       },
     });
     if (error) throw new Error(error.message);

@@ -35,7 +35,7 @@ const Login = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await signUp(email, password, name, 'freelancer');
+      await signUp(email, password, name);
       toast.success('Conta criada! Verifique seu email para confirmar.');
     } catch (error) {
       toast.error((error as Error).message || 'Falha no cadastro');
