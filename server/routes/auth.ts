@@ -3,6 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { normalizeNullableTeamType, normalizeUserRow } from '../utils/teamDomain';
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
       [user.id]
     );
     if (profileResult.rows.length > 0) {
-      freelancerProfile = profileResult.rows[0];
+      freelancerProfile = normalizeUserRow(profileResult.rows[0]);
     }
   }
 
@@ -108,6 +109,14 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     throw createError('Tipo de equipe é obrigatório para freelancers', 400);
   }
 
+  const normalizedTeamType = role === 'freelancer' ? normalizeNullableTeamType(teamType) : null;
+  if (role === 'freelancer' && !normalizedTeamType) {
+    throw createError(
+      'Tipo de equipe inválido. Use iniciante, intermediario, avancado ou sem_equipe',
+      400
+    );
+  }
+
   // Verificar se email já existe
   const existingUser = await pool.query(
     'SELECT id FROM users WHERE email = $1',
@@ -138,7 +147,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
         experience_level, audio_visual_roles, bio
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
-        newUser.id, teamType, phone, address, city, state, cpf,
+        newUser.id, normalizedTeamType, phone, address, city, state, cpf,
         experienceLevel, audioVisualRoles, bio
       ]
     );

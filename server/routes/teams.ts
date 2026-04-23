@@ -2,6 +2,12 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../config/database';
 import { requireGestor, requireFreelancerOrLider } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import {
+  normalizeEventRow,
+  normalizeTeamType,
+  normalizeUserRow,
+} from '../utils/teamDomain';
+import { listTeamAssignments } from '../utils/teamAssignments';
 
 const router = Router();
 
@@ -56,11 +62,12 @@ router.get('/', requireGestor, asyncHandler(async (req: Request, res: Response) 
     ORDER BY fp.team_type, u.name
   `);
 
+  const users = result.rows.map((row) => normalizeUserRow(row));
   const teams = {
-    iniciante: result.rows.filter(user => user.team_type === 'iniciante'),
-    intermediario: result.rows.filter(user => user.team_type === 'intermediario'),
-    avancado: result.rows.filter(user => user.team_type === 'avancado'),
-    sem_equipe: result.rows.filter(user => user.team_type === 'sem_equipe' || !user.team_type)
+    iniciante: users.filter(user => user.team_type === 'iniciante'),
+    intermediario: users.filter(user => user.team_type === 'intermediario'),
+    avancado: users.filter(user => user.team_type === 'avancado'),
+    sem_equipe: users.filter(user => user.team_type === 'sem_equipe' || !user.team_type)
   };
 
   res.json({
@@ -167,17 +174,19 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
   }
 
   const user = userResult.rows[0];
+  const normalizedUser = normalizeUserRow(user);
+  const normalizedEvent = normalizeEventRow(event);
 
   let dailyRate: number;
 
-  if (user.team_type === 'iniciante') {
-    dailyRate = event.daily_rate_iniciante || event.daily_rate_team_b || 200;
-  } else if (user.team_type === 'intermediario') {
-    dailyRate = event.daily_rate_intermediario || event.daily_rate_team_b || 200;
-  } else if (user.team_type === 'avancado') {
-    dailyRate = event.daily_rate_avancado || event.daily_rate_team_a || 250;
+  if (normalizedUser.team_type === 'iniciante') {
+    dailyRate = Number(normalizedEvent.daily_rate_iniciante || 200);
+  } else if (normalizedUser.team_type === 'intermediario') {
+    dailyRate = Number(normalizedEvent.daily_rate_intermediario || 200);
+  } else if (normalizedUser.team_type === 'avancado') {
+    dailyRate = Number(normalizedEvent.daily_rate_avancado || 250);
   } else {
-    dailyRate = event.daily_rate_iniciante || event.daily_rate_team_b || 200;
+    dailyRate = Number(normalizedEvent.daily_rate_iniciante || 200);
   }
 
   const existingAllocation = await pool.query(
@@ -245,7 +254,7 @@ router.post('/allocate', requireGestor, asyncHandler(async (req: Request, res: R
     message: 'Freelancer alocado com sucesso',
     allocation: {
       ...allocation,
-      team_type: user.team_type,
+      team_type: normalizedUser.team_type,
       calculated_daily_rate: dailyRate,
     },
   });
@@ -460,9 +469,9 @@ router.get('/active-freelancers', requireGestor, asyncHandler(async (_req: Reque
   };
 
   const keys = ['iniciante', 'intermediario', 'avancado', 'sem_equipe'] as const;
-  result.rows.forEach((urow: Record<string, unknown>) => {
-    const raw = (urow.team_type as string) || 'sem_equipe';
-    const bucket = keys.includes(raw as (typeof keys)[number]) ? raw : 'sem_equipe';
+  result.rows.forEach((rawRow: Record<string, unknown>) => {
+    const urow = normalizeUserRow(rawRow);
+    const bucket = normalizeTeamType(urow.team_type);
     const t = teams[bucket as keyof typeof teams];
     t.total++;
     t.active++;
@@ -480,6 +489,117 @@ router.get('/active-freelancers', requireGestor, asyncHandler(async (_req: Reque
   });
 
   res.json(teams);
+}));
+
+// Histórico de atribuições de equipe
+router.get('/assignments', requireGestor, asyncHandler(async (_req: Request, res: Response) => {
+  const assignments = await listTeamAssignments();
+  res.json({ assignments });
+}));
+
+// Alocações de um evento
+router.get('/event/:eventId/allocations', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const { eventId } = req.params;
+
+  const result = await pool.query(
+    `
+    SELECT
+      ta.*,
+      u.name AS user_name,
+      u.email AS user_email,
+      fp.team_type,
+      fp.experience_level
+    FROM team_allocations ta
+    INNER JOIN users u ON u.id = ta.user_id
+    LEFT JOIN freelancer_profiles fp ON fp.user_id = u.id
+    WHERE ta.event_id = $1
+    ORDER BY ta.created_at ASC
+  `,
+    [eventId]
+  );
+
+  res.json({
+    allocations: result.rows.map((row) => normalizeUserRow(row)),
+  });
+}));
+
+// Lista de presença de um evento em uma data
+router.get('/event/:eventId/attendance', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+  const { eventId } = req.params;
+  const requestedDate = typeof req.query.date === 'string' ? req.query.date : null;
+
+  const eventResult = await pool.query(
+    'SELECT id, start_date FROM events WHERE id = $1',
+    [eventId]
+  );
+
+  if (eventResult.rows.length === 0) {
+    throw createError('Evento não encontrado', 404);
+  }
+
+  const eventDate = requestedDate || String(eventResult.rows[0].start_date).split('T')[0];
+
+  const result = await pool.query(
+    `
+    SELECT
+      ta.id AS allocation_id,
+      ta.user_id,
+      ta.assigned_role,
+      ta.daily_rate,
+      u.name AS user_name,
+      fp.team_type,
+      ar.id AS attendance_id,
+      ar.date,
+      ar.status AS attendance_status,
+      ar.daily_payment,
+      ar.payment_confirmed,
+      ar.notes,
+      ar.confirmed_at,
+      ar.confirmed_by
+    FROM team_allocations ta
+    INNER JOIN users u ON u.id = ta.user_id
+    LEFT JOIN freelancer_profiles fp ON fp.user_id = u.id
+    LEFT JOIN attendance_records ar
+      ON ar.team_allocation_id = ta.id
+     AND ar.date = $2
+    WHERE ta.event_id = $1
+    ORDER BY u.name ASC
+  `,
+    [eventId, eventDate]
+  );
+
+  const allocations = result.rows.map((row) => {
+    const normalizedRow = normalizeUserRow(row);
+    return {
+      allocationId: normalizedRow.allocation_id,
+      userId: normalizedRow.user_id,
+      userName: normalizedRow.user_name,
+      assignedRole: normalizedRow.assigned_role,
+      teamType: normalizedRow.team_type,
+      attendance: {
+        id: normalizedRow.attendance_id ?? '',
+        date: normalizedRow.date ?? eventDate,
+        status: normalizedRow.attendance_status ?? 'pending',
+        dailyPayment: Number(normalizedRow.daily_payment ?? normalizedRow.daily_rate ?? 0),
+        paymentConfirmed: Boolean(normalizedRow.payment_confirmed),
+        notes: normalizedRow.notes ?? '',
+        confirmedAt: normalizedRow.confirmed_at ?? undefined,
+        confirmedBy: normalizedRow.confirmed_by ?? undefined,
+      },
+    };
+  });
+
+  res.json({
+    attendanceList: {
+      eventId,
+      eventDate,
+      allocations,
+      totalPresent: allocations.filter((item) => item.attendance.status === 'present').length,
+      totalAbsent: allocations.filter((item) => item.attendance.status === 'absent').length,
+      totalLate: allocations.filter((item) => item.attendance.status === 'late').length,
+      totalPending: allocations.filter((item) => item.attendance.status === 'pending').length,
+    },
+  });
 }));
 
 // Verificar se toda a equipe de um evento está confirmada (por status da alocação)

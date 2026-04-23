@@ -93,7 +93,7 @@ const TeamManagement = () => {
         name: '',
         email: '',
         password: '',
-        teamType: 'equipe_a',
+        teamType: 'iniciante',
         phone: '',
         address: '',
         city: '',
@@ -343,7 +343,7 @@ const TeamManagement = () => {
         name: '',
         email: '',
         password: '',
-        teamType: 'equipe_a',
+        teamType: 'iniciante',
         phone: '',
         address: '',
         city: '',
@@ -449,7 +449,7 @@ const TeamManagement = () => {
       
       toast({
         title: "Sucesso!",
-        description: "Freelancer excluído com sucesso!",
+        description: "Freelancer desativado com sucesso!",
       });
       setShowEditDialog(false);
       setEditingFreelancer(null);
@@ -458,7 +458,7 @@ const TeamManagement = () => {
       console.error('Erro ao deletar freelancer:', error);
       toast({
         title: "Erro",
-        description: "Erro ao excluir freelancer. Tente novamente.",
+        description: "Erro ao desativar freelancer. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -850,7 +850,7 @@ const TeamManagement = () => {
               <CardHeader>
                 <CardTitle>Histórico de Atribuições</CardTitle>
                 <p className="text-sm text-gray-600">
-                  Visualize todas as atribuições de equipe
+                  Visualize a trilha de auditoria das mudanças de equipe
                 </p>
               </CardHeader>
               <CardContent>
@@ -867,15 +867,25 @@ const TeamManagement = () => {
                             <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <h4 className="font-medium text-sm">{user.name}</h4>
+                            <h4 className="font-medium text-sm">{assignment.userName || user.name}</h4>
                             <div className="flex items-center space-x-2 mt-1">
-                              <Badge className={getTeamColor(assignment.teamType)}>
-                                {getTeamLabel(assignment.teamType)}
+                              {assignment.fromTeamType && (
+                                <Badge variant="outline" className="text-xs">
+                                  {getTeamLabel(assignment.fromTeamType)}
+                                </Badge>
+                              )}
+                              <Badge className={getTeamColor(assignment.toTeamType)}>
+                                {getTeamLabel(assignment.toTeamType)}
                               </Badge>
                               <span className="text-xs text-gray-500">
-                                Atribuído em {new Date(assignment.assignedAt).toLocaleDateString('pt-BR')}
+                                Alterado em {new Date(assignment.changedAt).toLocaleDateString('pt-BR')}
                               </span>
                             </div>
+                            {assignment.changedByName && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Alterado por {assignment.changedByName}
+                              </p>
+                            )}
                             {assignment.notes && (
                               <p className="text-xs text-gray-600 mt-1">{assignment.notes}</p>
                             )}

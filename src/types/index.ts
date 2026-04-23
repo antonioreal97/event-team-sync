@@ -98,10 +98,18 @@ export interface UserAvailability {
 export interface TeamAssignment {
   id: string;
   userId: string;
-  teamType: TeamType;
-  assignedBy: string; // ID do gestor que fez a atribuição
-  assignedAt: string;
+  fromTeamType?: TeamType;
+  toTeamType: TeamType;
+  changedBy: string; // ID do gestor que fez a alteração
+  changedAt: string;
   notes?: string;
+  userName?: string;
+  userEmail?: string;
+  changedByName?: string;
+  // Aliases de compatibilidade para telas antigas.
+  teamType: TeamType;
+  assignedBy: string;
+  assignedAt: string;
 }
 
 // Atualizando Event para incluir prioridade de equipe (visível apenas para gestores)
@@ -127,11 +135,14 @@ export interface Event {
   // Sistema de prioridade por nível de experiência (APENAS PARA GESTORES)
   teamPriority: 'iniciante' | 'intermediario' | 'avancado' | 'ambas'; // Qual nível tem prioridade
   allowBackupLevels: boolean; // Se permite escalar outros níveis quando o prioritário não estiver disponível
-  
+  allowTeamB?: boolean; // Alias legado para compatibilidade
+
   // Sistema de valores por tipo de evento e nível de experiência
   dailyRateIniciante: number; // Valor por diária para Iniciante (mesmo de Intermediário)
   dailyRateIntermediario: number; // Valor por diária para Intermediário (mesmo de Iniciante)
   dailyRateAvancado: number; // Valor por diária para Avançado
+  dailyRateTeamA?: number; // Alias legado para compatibilidade
+  dailyRateTeamB?: number; // Alias legado para compatibilidade
   
   // Informações de multi-dia
   isMultiDay: boolean; // Se o evento dura múltiplos dias

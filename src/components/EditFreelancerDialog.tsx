@@ -68,7 +68,7 @@ const EditFreelancerDialog: React.FC<EditFreelancerDialogProps> = ({
       await onDelete(freelancer.id);
       onClose();
     } catch (error) {
-      console.error('Erro ao deletar freelancer:', error);
+      console.error('Erro ao desativar freelancer:', error);
     } finally {
       setLoading(false);
     }
@@ -285,7 +285,7 @@ const EditFreelancerDialog: React.FC<EditFreelancerDialogProps> = ({
                 className="flex items-center space-x-2"
               >
                 <Trash2 className="h-4 w-4" />
-                <span>Excluir Usuário</span>
+                <span>Desativar Usuário</span>
               </Button>
             ) : (
               <div className="flex space-x-2">
@@ -296,7 +296,7 @@ const EditFreelancerDialog: React.FC<EditFreelancerDialogProps> = ({
                   className="flex items-center space-x-2"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>Confirmar Exclusão</span>
+                  <span>Confirmar Desativação</span>
                 </Button>
                 <Button
                   variant="outline"

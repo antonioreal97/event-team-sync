@@ -1,4 +1,5 @@
 import type { User, UserRole, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
+import { normalizeTeamType } from '@/lib/teamDomain';
 
 /** Linha retornada por GET /users/profile/me (snake_case do Postgres). */
 export function mapApiProfileRowToUser(row: Record<string, unknown>): User {
@@ -11,7 +12,10 @@ export function mapApiProfileRowToUser(row: Record<string, unknown>): User {
     email: String(row.email ?? ''),
     role,
     avatar: row.avatar != null ? String(row.avatar) : undefined,
-    teamType: (fp.team_type as TeamType | null | undefined) ?? undefined,
+    teamType:
+      fp.team_type != null
+        ? normalizeTeamType(fp.team_type)
+        : undefined,
     phone: fp.phone != null ? String(fp.phone) : undefined,
     address: fp.address != null ? String(fp.address) : undefined,
     city: fp.city != null ? String(fp.city) : undefined,

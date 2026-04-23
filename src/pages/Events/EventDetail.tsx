@@ -532,14 +532,17 @@ const EventDetail = () => {
                         // Determinar a diária baseada no nível de experiência
                         let dailyRate = 0;
                         let gradientClass = '';
+                        const isIniciante = userTeamType === 'iniciante';
+                        const isIntermediario = userTeamType === 'intermediario';
+                        const isAvancado = userTeamType === 'avancado';
                         
-                        if (userTeamType === 'iniciante' || userTeamType === 'equipe_b') {
+                        if (isIniciante) {
                           dailyRate = event.dailyRateIniciante || 0;
                           gradientClass = 'from-blue-700/80 to-blue-600/80 border-blue-400/40';
-                        } else if (userTeamType === 'intermediario') {
+                        } else if (isIntermediario) {
                           dailyRate = event.dailyRateIntermediario || 0;
                           gradientClass = 'from-purple-700/80 to-purple-600/80 border-purple-400/40';
-                        } else if (userTeamType === 'avancado' || userTeamType === 'equipe_a') {
+                        } else if (isAvancado) {
                           dailyRate = event.dailyRateAvancado || 0;
                           gradientClass = 'from-amber-700/80 to-amber-600/80 border-amber-400/40';
                         } else {
@@ -557,17 +560,17 @@ const EventDetail = () => {
                         return (
                           <div className={`bg-gradient-to-r ${gradientClass} p-4 rounded-lg border`}>
                             <div className="flex justify-between items-center">
-                              <span className={`font-semibold ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-100' : userTeamType === 'intermediario' ? 'text-purple-100' : 'text-amber-100'}`}>
+                              <span className={`font-semibold ${isIniciante ? 'text-blue-100' : isIntermediario ? 'text-purple-100' : 'text-amber-100'}`}>
                                 {teamLabel} - Sua Categoria
                               </span>
                               <div className="text-right">
-                                <div className={`text-sm ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-200' : userTeamType === 'intermediario' ? 'text-purple-200' : 'text-amber-200'}`}>
+                                <div className={`text-sm ${isIniciante ? 'text-blue-200' : isIntermediario ? 'text-purple-200' : 'text-amber-200'}`}>
                                   R$ {dailyRate || 0}/dia
                                 </div>
-                                <div className={`font-bold text-lg ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-100' : userTeamType === 'intermediario' ? 'text-purple-100' : 'text-amber-100'}`}>
+                                <div className={`font-bold text-lg ${isIniciante ? 'text-blue-100' : isIntermediario ? 'text-purple-100' : 'text-amber-100'}`}>
                                   R$ {totalPayment}
                                 </div>
-                                <div className={`text-xs ${userTeamType === 'iniciante' || userTeamType === 'equipe_b' ? 'text-blue-300' : userTeamType === 'intermediario' ? 'text-purple-300' : 'text-amber-300'}`}>
+                                <div className={`text-xs ${isIniciante ? 'text-blue-300' : isIntermediario ? 'text-purple-300' : 'text-amber-300'}`}>
                                   Seu pagamento total
                                 </div>
                               </div>

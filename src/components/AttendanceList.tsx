@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { AttendanceList as AttendanceListType, AttendanceStatus } from '@/types';
 import { getAttendanceList, updateAttendanceStatus, confirmDailyPayment } from '@/services/attendanceService';
+import { getTeamTypeLabel } from '@/lib/utils';
 import { CheckCircle, XCircle, Clock, AlertCircle, DollarSign, UserCheck, UserX } from 'lucide-react';
 
 interface AttendanceListProps {
@@ -42,7 +43,7 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
   const fetchAttendanceList = async () => {
     try {
       setLoading(true);
-      const data = await getAttendanceList(eventId);
+      const data = await getAttendanceList(eventId, eventDate);
       setAttendanceList(data);
     } catch (error) {
       console.error('Failed to fetch attendance list:', error);
@@ -224,11 +225,7 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
                     <p className="text-sm text-gray-600 capitalize">{allocation.assignedRole}</p>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {allocation.teamType === 'iniciante' ? 'Iniciante' : 
-                         allocation.teamType === 'intermediario' ? 'Intermediário' : 
-                         allocation.teamType === 'avancado' ? 'Avançado' : 
-                         allocation.teamType === 'equipe_a' ? 'Avançado' : 
-                         allocation.teamType === 'equipe_b' ? 'Iniciante' : 'Sem Equipe'}
+                        {getTeamTypeLabel(allocation.teamType)}
                       </Badge>
                       <Badge className={`text-xs ${getStatusColor(allocation.attendance.status)}`}>
                         {getStatusIcon(allocation.attendance.status)}
@@ -341,7 +338,6 @@ const AttendanceList: React.FC<AttendanceListProps> = ({
 };
 
 export default AttendanceList;
-
 
 
 
