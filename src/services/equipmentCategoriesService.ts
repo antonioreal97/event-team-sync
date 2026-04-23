@@ -1,89 +1,56 @@
 import { EquipmentCategory } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE = '/api/equipment/categories';
+function mapRow(row: any): EquipmentCategory {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 export const getAllEquipmentCategories = async (): Promise<EquipmentCategory[]> => {
-  const response = await fetch(API_BASE, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao buscar categorias de equipamentos');
-  }
-
-  const data = await response.json();
-  return data.categories;
+  const { data, error } = await supabase.from('equipment_categories').select('*').order('name');
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRow);
 };
 
 export const getEquipmentCategoryById = async (id: string): Promise<EquipmentCategory> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao buscar categoria de equipamento');
-  }
-
-  const data = await response.json();
-  return data.category;
+  const { data, error } = await supabase.from('equipment_categories').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Categoria não encontrada');
+  return mapRow(data);
 };
 
-export const createEquipmentCategory = async (categoryData: Omit<EquipmentCategory, 'id' | 'createdAt' | 'updatedAt'>): Promise<EquipmentCategory> => {
-  const response = await fetch(API_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(categoryData),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao criar categoria de equipamento');
-  }
-
-  const data = await response.json();
-  return data.category;
+export const createEquipmentCategory = async (
+  categoryData: Omit<EquipmentCategory, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<EquipmentCategory> => {
+  const { data, error } = await (supabase as any)
+    .from('equipment_categories')
+    .insert({ name: categoryData.name, description: categoryData.description })
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return mapRow(data);
 };
 
-export const updateEquipmentCategory = async (id: string, categoryData: Partial<Omit<EquipmentCategory, 'id' | 'createdAt' | 'updatedAt'>>): Promise<EquipmentCategory> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(categoryData),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao atualizar categoria de equipamento');
-  }
-
-  const data = await response.json();
-  return data.category;
+export const updateEquipmentCategory = async (
+  id: string,
+  categoryData: Partial<Omit<EquipmentCategory, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<EquipmentCategory> => {
+  const { data, error } = await (supabase as any)
+    .from('equipment_categories')
+    .update({ name: categoryData.name, description: categoryData.description })
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return mapRow(data);
 };
 
 export const deleteEquipmentCategory = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao deletar categoria de equipamento');
-  }
+  const { error } = await supabase.from('equipment_categories').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };
-

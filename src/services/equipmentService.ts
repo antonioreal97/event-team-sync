@@ -1,119 +1,110 @@
-
 import { Equipment, EquipmentAllocation } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE = '/api/equipment';
+function mapEquipmentRow(row: any): Equipment {
+  return {
+    id: row.id,
+    name: row.name,
+    totalQuantity: row.total_quantity,
+    description: row.description,
+    categoryId: row.category_id,
+    categoryName: row.category_name || row.equipment_categories?.name,
+    categoryDescription: row.equipment_categories?.description,
+    hourlyRate: row.hourly_rate,
+    dailyRate: row.daily_rate,
+    condition: row.condition,
+    location: row.location,
+    lastMaintenance: row.last_maintenance,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
-// Equipment service functions
+function equipmentToDb(data: any): any {
+  return {
+    name: data.name,
+    total_quantity: data.totalQuantity ?? 1,
+    description: data.description,
+    category_id: data.categoryId || null,
+    hourly_rate: data.hourlyRate,
+    daily_rate: data.dailyRate,
+    condition: data.condition || 'good',
+    location: data.location,
+    last_maintenance: data.lastMaintenance,
+  };
+}
+
 export const getAllEquipments = async (): Promise<Equipment[]> => {
-  const response = await fetch(API_BASE, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao buscar equipamentos');
-  }
-
-  const data = await response.json();
-  return data.equipments;
+  const { data, error } = await supabase
+    .from('equipment')
+    .select('*, equipment_categories(name, description)');
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapEquipmentRow);
 };
 
 export const getEquipmentById = async (id: string): Promise<Equipment> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao buscar equipamento');
-  }
-
-  const data = await response.json();
-  return data.equipment;
+  const { data, error } = await supabase
+    .from('equipment')
+    .select('*, equipment_categories(name, description)')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Equipamento não encontrado');
+  return mapEquipmentRow(data);
 };
 
-export const createEquipment = async (equipmentData: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'categoryDescription'>): Promise<Equipment> => {
-  const response = await fetch(API_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(equipmentData),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao criar equipamento');
-  }
-
-  const data = await response.json();
-  return data.equipment;
+export const createEquipment = async (
+  equipmentData: Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'categoryDescription'>
+): Promise<Equipment> => {
+  const { data, error } = await (supabase as any)
+    .from('equipment')
+    .insert(equipmentToDb(equipmentData))
+    .select('*, equipment_categories(name, description)')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return mapEquipmentRow(data);
 };
 
-export const updateEquipment = async (id: string, equipmentData: Partial<Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'categoryDescription'>>): Promise<Equipment> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(equipmentData),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao atualizar equipamento');
-  }
-
-  const data = await response.json();
-  return data.equipment;
+export const updateEquipment = async (
+  id: string,
+  equipmentData: Partial<Omit<Equipment, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'categoryDescription'>>
+): Promise<Equipment> => {
+  const { data, error } = await (supabase as any)
+    .from('equipment')
+    .update(equipmentToDb(equipmentData))
+    .eq('id', id)
+    .select('*, equipment_categories(name, description)')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return mapEquipmentRow(data);
 };
 
 export const deleteEquipment = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_BASE}/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Erro ao deletar equipamento');
-  }
+  const { error } = await supabase.from('equipment').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };
 
-// Manter compatibilidade com sistema antigo
-export const getEventEquipmentAllocations = async (eventId: string): Promise<EquipmentAllocation[]> => {
-  // Esta função agora deve usar o novo sistema de reservas
-  // Por enquanto, retornar array vazio para não quebrar o código existente
+export const getEventEquipmentAllocations = async (_eventId: string): Promise<EquipmentAllocation[]> => {
   return [];
 };
 
-export const createEquipmentAllocation = async (allocationData: Omit<EquipmentAllocation, 'id'>): Promise<EquipmentAllocation> => {
-  // Esta função agora deve usar o novo sistema de reservas
+export const createEquipmentAllocation = async (_data: Omit<EquipmentAllocation, 'id'>): Promise<EquipmentAllocation> => {
   throw new Error('Use o novo sistema de reservas de equipamentos');
 };
 
-export const updateEquipmentAllocation = async (id: string, allocationData: Partial<EquipmentAllocation>): Promise<EquipmentAllocation> => {
-  // Esta função agora deve usar o novo sistema de reservas
+export const updateEquipmentAllocation = async (_id: string, _data: Partial<EquipmentAllocation>): Promise<EquipmentAllocation> => {
   throw new Error('Use o novo sistema de reservas de equipamentos');
 };
 
-export const deleteEquipmentAllocation = async (id: string): Promise<void> => {
-  // Esta função agora deve usar o novo sistema de reservas
+export const deleteEquipmentAllocation = async (_id: string): Promise<void> => {
   throw new Error('Use o novo sistema de reservas de equipamentos');
 };
 
-// Check equipment availability
-export const checkEquipmentAvailability = async (equipmentId: string, startDate: string, endDate: string, excludeEventId?: string): Promise<number> => {
-  // Esta função agora deve usar o novo sistema de itens individuais
-  // Por enquanto, retornar 0 para não quebrar o código existente
+export const checkEquipmentAvailability = async (
+  _equipmentId: string,
+  _startDate: string,
+  _endDate: string,
+  _excludeEventId?: string
+): Promise<number> => {
   return 0;
 };
