@@ -34,7 +34,7 @@ const EventInterestManagement = () => {
     try {
       setLoading(true);
       const rows = await apiGetPendingAllocationsForGestor();
-      setAllocations(rows as PendingAllocationRow[]);
+      setAllocations(rows as unknown as PendingAllocationRow[]);
     } catch (e) {
       console.error(e);
       toast({
