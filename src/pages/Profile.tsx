@@ -13,7 +13,7 @@ import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
 import { getTeamTypeLabel } from '@/lib/utils';
-import { getApiBaseUrl, getStoredAuthToken } from '@/lib/api';
+import { updateUser } from '@/services/userService';
 import { 
   User as UserIcon, 
   Phone, 
@@ -143,20 +143,7 @@ const Profile = () => {
       const dataToSend = { ...profileData };
       delete dataToSend.teamType;
 
-      const token = getStoredAuthToken();
-      const response = await fetch(`${getApiBaseUrl()}/api/users/${user?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(dataToSend),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao atualizar perfil');
-      }
+      await updateUser(user!.id, dataToSend as any);
 
       toast({
         title: 'Perfil Atualizado',
