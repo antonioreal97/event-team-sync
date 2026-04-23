@@ -30,25 +30,7 @@ export const authenticateToken = async (
       });
     }
 
-    // Verificar se é um token demo
-    if (token.startsWith('demo-token-')) {
-      const userType = token.replace('demo-token-', '');
-      let userRole = 'freelancer';
-      
-      if (userType === 'admin') {
-        userRole = 'gestor';
-      } else if (userType === 'lider') {
-        userRole = 'lider_freelancer';
-      }
-      
-      req.user = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@frela.com',
-        role: userRole
-      };
-      
-      return next();
-    }
+    // Demo-token bypass removed for security. All callers must present a valid JWT.
 
     const secret = process.env.JWT_SECRET;
     if (!secret) {

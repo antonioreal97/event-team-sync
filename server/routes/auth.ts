@@ -84,7 +84,6 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     name, 
     email, 
     password, 
-    role, 
     teamType,
     phone,
     address,
@@ -97,20 +96,20 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   } = req.body;
 
   // Validações básicas
-  if (!name || !email || !password || !role) {
+  if (!name || !email || !password) {
     throw createError('Dados obrigatórios não fornecidos', 400);
   }
 
-  if (role !== 'gestor' && role !== 'freelancer') {
-    throw createError('Role inválido', 400);
-  }
+  // Public self-registration is always 'freelancer'. Admin (gestor) and lider_freelancer
+  // accounts must be created via the protected admin-create-user edge function.
+  const role = 'freelancer';
 
-  if (role === 'freelancer' && !teamType) {
+  if (!teamType) {
     throw createError('Tipo de equipe é obrigatório para freelancers', 400);
   }
 
-  const normalizedTeamType = role === 'freelancer' ? normalizeNullableTeamType(teamType) : null;
-  if (role === 'freelancer' && !normalizedTeamType) {
+  const normalizedTeamType = normalizeNullableTeamType(teamType);
+  if (!normalizedTeamType) {
     throw createError(
       'Tipo de equipe inválido. Use iniciante, intermediario, avancado ou sem_equipe',
       400
