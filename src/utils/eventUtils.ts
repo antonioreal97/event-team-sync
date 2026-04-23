@@ -1,4 +1,9 @@
 import { Event } from '@/types';
+import {
+  getLegacyDailyRateAliases,
+  normalizeTeamPriority,
+  normalizeTeamType,
+} from '@/lib/teamDomain';
 
 // Função para transformar dados do backend (snake_case) para frontend (camelCase)
 export const transformEventFromBackend = (backendEvent: any): Event => {
@@ -45,6 +50,12 @@ export const transformEventFromBackend = (backendEvent: any): Event => {
     }
   };
 
+  const dailyRateIniciante = backendEvent.daily_rate_iniciante ?? backendEvent.daily_rate_team_b ?? 200;
+  const dailyRateIntermediario = backendEvent.daily_rate_intermediario ?? backendEvent.daily_rate_team_b ?? 200;
+  const dailyRateAvancado = backendEvent.daily_rate_avancado ?? backendEvent.daily_rate_team_a ?? 250;
+  const allowBackupLevels = backendEvent.allow_backup_levels ?? backendEvent.allow_team_b ?? true;
+  const legacyRates = getLegacyDailyRateAliases(dailyRateIniciante, dailyRateAvancado);
+
   const transformedEvent = {
     id: backendEvent.id,
     title: backendEvent.title,
@@ -61,11 +72,14 @@ export const transformEventFromBackend = (backendEvent: any): Event => {
     budget: backendEvent.budget,
     requirements: backendEvent.requirements || [],
     notes: backendEvent.notes,
-    teamPriority: backendEvent.team_priority,
-    allowBackupLevels: backendEvent.allow_backup_levels ?? backendEvent.allow_team_b ?? true, // Compatibilidade
-    dailyRateIniciante: backendEvent.daily_rate_iniciante ?? backendEvent.daily_rate_team_b ?? 200, // Compatibilidade
-    dailyRateIntermediario: backendEvent.daily_rate_intermediario ?? backendEvent.daily_rate_team_b ?? 200, // Compatibilidade
-    dailyRateAvancado: backendEvent.daily_rate_avancado ?? backendEvent.daily_rate_team_a ?? 250, // Compatibilidade
+    teamPriority: normalizeTeamPriority(backendEvent.team_priority),
+    allowBackupLevels,
+    allowTeamB: allowBackupLevels,
+    dailyRateIniciante,
+    dailyRateIntermediario,
+    dailyRateAvancado,
+    dailyRateTeamA: legacyRates.dailyRateTeamA,
+    dailyRateTeamB: legacyRates.dailyRateTeamB,
     isMultiDay: backendEvent.is_multi_day,
     totalDays: backendEvent.total_days,
     workingDays: backendEvent.working_days || [],
@@ -99,6 +113,8 @@ export const transformEventFromBackend = (backendEvent: any): Event => {
       notes: allocation.notes,
       createdAt: allocation.created_at,
       updatedAt: allocation.updated_at,
+      team_type: allocation.team_type ? normalizeTeamType(allocation.team_type) : undefined,
+      teamType: allocation.team_type ? normalizeTeamType(allocation.team_type) : undefined,
     })),
     equipmentAllocations: backendEvent.equipmentAllocations || [],
   };

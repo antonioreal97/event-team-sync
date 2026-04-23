@@ -1,60 +1,268 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../config/database';
-import { requireGestor, requireFreelancer } from '../middleware/auth';
-import { asyncHandler, createError } from '../middleware/errorHandler';
 import * as bcrypt from 'bcryptjs';
-import { authenticateToken } from '../middleware/auth';
+import { pool } from '../config/database';
+import { authenticateToken, requireGestor } from '../middleware/auth';
+import { asyncHandler, createError } from '../middleware/errorHandler';
+import {
+  isCanonicalTeamType,
+  normalizeNullableTeamType,
+  normalizeTeamType,
+  normalizeUserRow,
+  type CanonicalTeamType,
+} from '../utils/teamDomain';
+import { recordTeamAssignment } from '../utils/teamAssignments';
 
 const router = Router();
 
+const USER_SELECT = `
+  SELECT
+    u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.updated_at,
+    fp.team_type, fp.phone, fp.address, fp.city, fp.state, fp.cpf,
+    fp.hourly_rate, fp.daily_rate, fp.experience_level,
+    fp.audio_visual_roles, fp.bio, fp.portfolio, fp.linkedin,
+    fp.instagram, fp.website, fp.previous_experience, fp.certifications,
+    fp.equipment, fp.languages, fp.total_events_attended,
+    fp.total_earnings, fp.average_rating
+  FROM users u
+  LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
+`;
+
+const VALID_STATES = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
+  'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
+  'SP', 'SE', 'TO',
+]);
+
+function sanitizeOptionalText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+}
+
+function sanitizeOptionalPhone(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 11) return null;
+  return digits;
+}
+
+function sanitizeOptionalCpf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 11) return null;
+  if (/^(\d)\1{10}$/.test(digits)) return null;
+  return digits;
+}
+
+function sanitizeOptionalState(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().toUpperCase();
+  if (!VALID_STATES.has(trimmed)) return null;
+  return trimmed;
+}
+
+function sanitizeOptionalUrl(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+  return normalized.slice(0, maxLength);
+}
+
+function sanitizeOptionalInstagram(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+  return normalized.slice(0, 100);
+}
+
+function sanitizeStringArray(value: unknown, maxItems: number): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const normalized = value
+    .filter((entry) => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return normalized;
+}
+
+async function fetchUserDetails(userId: string): Promise<Record<string, unknown>> {
+  const result = await pool.query(`${USER_SELECT} WHERE u.id = $1`, [userId]);
+  if (result.rows.length === 0) {
+    throw createError('Usuário não encontrado', 404);
+  }
+  return normalizeUserRow(result.rows[0]);
+}
+
+async function fetchCurrentTeamType(userId: string): Promise<CanonicalTeamType | null> {
+  const result = await pool.query(
+    'SELECT team_type FROM freelancer_profiles WHERE user_id = $1',
+    [userId]
+  );
+  if (result.rows.length === 0) return null;
+  return normalizeTeamType(result.rows[0].team_type);
+}
+
+function validateName(name: unknown): string {
+  if (typeof name !== 'string' || !name.trim()) {
+    throw createError('Nome é obrigatório', 400);
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < 2) {
+    throw createError('Nome deve ter pelo menos 2 caracteres', 400);
+  }
+  if (trimmed.length > 255) {
+    throw createError('Nome deve ter no máximo 255 caracteres', 400);
+  }
+  if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(trimmed)) {
+    throw createError('Nome deve conter apenas letras e espaços', 400);
+  }
+  return trimmed;
+}
+
+function validateEmail(email: unknown): string {
+  if (typeof email !== 'string' || !email.trim()) {
+    throw createError('Email é obrigatório', 400);
+  }
+  const trimmed = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw createError('Formato de email inválido', 400);
+  }
+  if (trimmed.length > 255) {
+    throw createError('Email deve ter no máximo 255 caracteres', 400);
+  }
+  if (trimmed.includes(' ')) {
+    throw createError('Email não pode conter espaços', 400);
+  }
+  if (!/^[a-zA-Z0-9@._-]+$/.test(trimmed)) {
+    throw createError('Email contém caracteres inválidos', 400);
+  }
+  return trimmed;
+}
+
+function validatePassword(password: unknown): string {
+  if (typeof password !== 'string' || password.length < 6) {
+    throw createError('Senha deve ter pelo menos 6 caracteres', 400);
+  }
+  if (password.length > 100) {
+    throw createError('Senha deve ter no máximo 100 caracteres', 400);
+  }
+  if (password.includes(' ')) {
+    throw createError('Senha não pode conter espaços', 400);
+  }
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    throw createError('Senha deve conter pelo menos uma letra e um número', 400);
+  }
+  if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/.test(password)) {
+    throw createError('Senha contém caracteres inválidos', 400);
+  }
+  return password;
+}
+
+async function updateProfileFields(userId: string, body: Record<string, unknown>): Promise<void> {
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+
+  const push = (column: string, value: unknown) => {
+    assignments.push(`${column} = $${values.length + 1}`);
+    values.push(value);
+  };
+
+  if (Object.prototype.hasOwnProperty.call(body, 'phone')) {
+    push('phone', sanitizeOptionalPhone(body.phone));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'address')) {
+    push('address', sanitizeOptionalText(body.address, 500));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'city')) {
+    push('city', sanitizeOptionalText(body.city, 100));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'state')) {
+    push('state', sanitizeOptionalState(body.state));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'cpf')) {
+    const cpf = body.cpf == null || body.cpf === '' ? null : sanitizeOptionalCpf(body.cpf);
+    if (body.cpf && !cpf) {
+      throw createError('CPF deve conter 11 dígitos válidos', 400);
+    }
+    if (cpf) {
+      const existingCpf = await pool.query(
+        'SELECT user_id FROM freelancer_profiles WHERE cpf = $1 AND user_id <> $2',
+        [cpf, userId]
+      );
+      if (existingCpf.rows.length > 0) {
+        throw createError('CPF já cadastrado', 409);
+      }
+    }
+    push('cpf', cpf);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'experienceLevel')) {
+    const value = body.experienceLevel;
+    if (
+      value != null
+      && value !== ''
+      && !['iniciante', 'intermediario', 'avancado', 'expert'].includes(String(value))
+    ) {
+      throw createError('Nível de experiência inválido', 400);
+    }
+    push('experience_level', value || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'audioVisualRoles')) {
+    push('audio_visual_roles', sanitizeStringArray(body.audioVisualRoles, 10));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'bio')) {
+    push('bio', sanitizeOptionalText(body.bio, 1000));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'portfolio')) {
+    push('portfolio', sanitizeOptionalUrl(body.portfolio, 500));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'linkedin')) {
+    push('linkedin', sanitizeOptionalUrl(body.linkedin, 500));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'instagram')) {
+    push('instagram', sanitizeOptionalInstagram(body.instagram));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'website')) {
+    push('website', sanitizeOptionalUrl(body.website, 500));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'previousExperience')) {
+    push('previous_experience', sanitizeOptionalText(body.previousExperience, 2000));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'certifications')) {
+    push('certifications', sanitizeStringArray(body.certifications, 20));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'equipment')) {
+    push('equipment', sanitizeStringArray(body.equipment, 20));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'languages')) {
+    push('languages', sanitizeStringArray(body.languages, 10));
+  }
+
+  if (assignments.length === 0) return;
+
+  values.push(userId);
+  await pool.query(
+    `
+    UPDATE freelancer_profiles
+    SET ${assignments.join(', ')}, updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = $${values.length}
+  `,
+    values
+  );
+}
+
 // Listar todos os usuários (apenas gestores)
-router.get('/', requireGestor, asyncHandler(async (req: Request, res: Response) => {
+router.get('/', requireGestor, asyncHandler(async (_req: Request, res: Response) => {
   const result = await pool.query(`
-    SELECT 
-      u.id, u.name, u.email, u.role, u.is_active, u.created_at,
-      fp.team_type, fp.phone, fp.city, fp.state, fp.experience_level,
-      fp.audio_visual_roles, fp.total_events_attended, fp.total_earnings
-    FROM users u
-    LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
-    WHERE u.role = 'freelancer'
+    ${USER_SELECT}
+    WHERE u.role IN ('freelancer', 'lider_freelancer')
     ORDER BY u.name
   `);
 
   res.json({
-    users: result.rows
-  });
-}));
-
-// Buscar usuário por ID
-router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const userId = req.user?.id;
-
-  // Usuários só podem ver seus próprios dados, gestores podem ver todos
-  if (req.user?.role !== 'gestor' && userId !== id) {
-    throw createError('Acesso negado', 403);
-  }
-
-  const result = await pool.query(`
-    SELECT 
-      u.id, u.name, u.email, u.role, u.is_active, u.created_at,
-      fp.team_type, fp.phone, fp.address, fp.city, fp.state, fp.cpf,
-      fp.hourly_rate, fp.daily_rate, fp.experience_level,
-      fp.audio_visual_roles, fp.bio, fp.portfolio, fp.linkedin,
-      fp.instagram, fp.website, fp.previous_experience, fp.certifications,
-      fp.equipment, fp.languages, fp.total_events_attended, 
-      fp.total_earnings, fp.average_rating
-    FROM users u
-    LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
-    WHERE u.id = $1
-  `, [id]);
-
-  if (result.rows.length === 0) {
-    throw createError('Usuário não encontrado', 404);
-  }
-
-  res.json({
-    user: result.rows[0]
+    users: result.rows.map(normalizeUserRow),
   });
 }));
 
@@ -66,27 +274,21 @@ router.get('/profile/me', authenticateToken, asyncHandler(async (req: Request, r
     throw createError('Usuário não autenticado', 401);
   }
 
-  const result = await pool.query(`
-    SELECT 
-      u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.updated_at,
-      fp.team_type, fp.phone, fp.address, fp.city, fp.state, fp.cpf,
-      fp.hourly_rate, fp.daily_rate, fp.experience_level,
-      fp.audio_visual_roles, fp.bio, fp.portfolio, fp.linkedin,
-      fp.instagram, fp.website, fp.previous_experience, fp.certifications,
-      fp.equipment, fp.languages, fp.total_events_attended, 
-      fp.total_earnings, fp.average_rating
-    FROM users u
-    LEFT JOIN freelancer_profiles fp ON u.id = fp.user_id
-    WHERE u.id = $1
-  `, [userId]);
+  const user = await fetchUserDetails(userId);
+  res.json({ user });
+}));
 
-  if (result.rows.length === 0) {
-    throw createError('Usuário não encontrado', 404);
+// Buscar usuário por ID
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+
+  if (req.user?.role !== 'gestor' && userId !== id) {
+    throw createError('Acesso negado', 403);
   }
 
-  res.json({
-    user: result.rows[0]
-  });
+  const user = await fetchUserDetails(id);
+  res.json({ user });
 }));
 
 // Cadastrar novo freelancer (apenas gestores)
@@ -111,399 +313,220 @@ router.post('/', requireGestor, asyncHandler(async (req: Request, res: Response)
     previousExperience,
     certifications,
     equipment,
-    languages
+    languages,
   } = req.body;
 
-  // Validações
-  if (!name || !name.trim()) {
-    throw createError('Nome é obrigatório', 400);
-  }
-  
-  if (name.trim().length < 2) {
-    throw createError('Nome deve ter pelo menos 2 caracteres', 400);
-  }
-  
-  if (name.trim().length > 255) {
-    throw createError('Nome deve ter no máximo 255 caracteres', 400);
-  }
-  
-  // Validar se o nome não contém caracteres especiais inválidos
-  if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(name.trim())) {
-    throw createError('Nome deve conter apenas letras e espaços', 400);
-  }
-  
-  // Validar se o nome não contém números
-  if (/\d/.test(name.trim())) {
-    throw createError('Nome não pode conter números', 400);
-  }
-  
-  // Validar se o nome não contém caracteres especiais
-  if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(name.trim())) {
-    throw createError('Nome deve conter apenas letras e espaços', 400);
-  }
-  
-  if (!email || !email.trim()) {
-    throw createError('Email é obrigatório', 400);
-  }
-  
-  // Validar formato do email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
-    throw createError('Formato de email inválido', 400);
-  }
-  
-  if (email.trim().length > 255) {
-    throw createError('Email deve ter no máximo 255 caracteres', 400);
-  }
-  
-  // Validar se o email não contém espaços
-  if (email.includes(' ')) {
-    throw createError('Email não pode conter espaços', 400);
-  }
-  
-  // Validar se o email não contém caracteres especiais
-  if (!/^[a-zA-Z0-9@._-]+$/.test(email.trim())) {
-    throw createError('Email contém caracteres inválidos', 400);
-  }
-  
-  if (!password || password.length < 6) {
-    throw createError('Senha deve ter pelo menos 6 caracteres', 400);
-  }
-  
-  if (password.length > 100) {
-    throw createError('Senha deve ter no máximo 100 caracteres', 400);
-  }
-  
-  // Validar se a senha não contém espaços
-  if (password.includes(' ')) {
-    throw createError('Senha não pode conter espaços', 400);
-  }
-  
-  // Validar se a senha contém pelo menos uma letra e um número
-  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
-    throw createError('Senha deve conter pelo menos uma letra e um número', 400);
-  }
-  
-  // Validar se a senha não contém caracteres especiais
-  if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/.test(password)) {
-    throw createError('Senha contém caracteres inválidos', 400);
-  }
-  
-  if (!teamType) {
-    throw createError('Tipo de equipe é obrigatório', 400);
-  }
-  
-  if (!['equipe_a', 'equipe_b'].includes(teamType)) {
-    throw createError('Tipo de equipe inválido. Deve ser "equipe_a" ou "equipe_b"', 400);
+  const validatedName = validateName(name);
+  const validatedEmail = validateEmail(email);
+  const validatedPassword = validatePassword(password);
+  const normalizedTeamType = normalizeNullableTeamType(teamType);
+
+  if (!normalizedTeamType || !isCanonicalTeamType(normalizedTeamType)) {
+    throw createError(
+      'Tipo de equipe inválido. Use iniciante, intermediario, avancado ou sem_equipe',
+      400
+    );
   }
 
-  // Verificar se email já existe
   const existingUser = await pool.query(
     'SELECT id FROM users WHERE email = $1',
-    [email.toLowerCase()]
+    [validatedEmail]
   );
 
   if (existingUser.rows.length > 0) {
     throw createError('Email já cadastrado', 409);
   }
 
-      // Verificar se CPF já existe (apenas se fornecido)
-  if (cpf && cpf.trim()) {
-    // Validar formato do CPF (apenas números)
-    const cpfClean = cpf.replace(/\D/g, '');
-    if (cpfClean.length !== 11) {
-      throw createError('CPF deve conter 11 dígitos', 400);
-    }
-    
-    // Validar se todos os dígitos não são iguais
-    if (/^(\d)\1{10}$/.test(cpfClean)) {
-      throw createError('CPF inválido', 400);
-    }
-    
-    // Validar se o CPF não é muito longo
-    if (cpf.trim().length > 14) {
-      throw createError('CPF deve ter no máximo 14 caracteres', 400);
-    }
-
-    const existingCPF = await pool.query(
-      'SELECT id FROM freelancer_profiles WHERE cpf = $1',
-      [cpfClean]
+  const sanitizedCpf = cpf ? sanitizeOptionalCpf(cpf) : null;
+  if (cpf && !sanitizedCpf) {
+    throw createError('CPF deve conter 11 dígitos válidos', 400);
+  }
+  if (sanitizedCpf) {
+    const existingCpf = await pool.query(
+      'SELECT user_id FROM freelancer_profiles WHERE cpf = $1',
+      [sanitizedCpf]
     );
-
-    if (existingCPF.rows.length > 0) {
+    if (existingCpf.rows.length > 0) {
       throw createError('CPF já cadastrado', 409);
     }
   }
 
-  // Hash da senha
-  const saltRounds = 12;
-  const passwordHash = await bcrypt.hash(password, saltRounds);
+  const passwordHash = await bcrypt.hash(validatedPassword, 12);
 
-  // Inserir usuário
   const userResult = await pool.query(
-    'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-    [name, email.toLowerCase(), passwordHash, 'freelancer']
+    `
+    INSERT INTO users (name, email, password_hash, role)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id
+  `,
+    [validatedName, validatedEmail, passwordHash, 'freelancer']
   );
 
-  const newUser = userResult.rows[0];
+  const userId = userResult.rows[0].id as string;
 
-  // Criar perfil de freelancer com campos opcionais
-  const profileFields = ['user_id', 'team_type'];
-  const profileValues = [newUser.id, teamType];
-  let paramCount = 2;
+  await pool.query(
+    `
+    INSERT INTO freelancer_profiles (
+      user_id, team_type, phone, address, city, state, cpf,
+      experience_level, audio_visual_roles, bio, portfolio, linkedin,
+      instagram, website, previous_experience, certifications, equipment, languages
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7,
+      $8, $9, $10, $11, $12,
+      $13, $14, $15, $16, $17, $18
+    )
+  `,
+    [
+      userId,
+      normalizedTeamType,
+      sanitizeOptionalPhone(phone),
+      sanitizeOptionalText(address, 500),
+      sanitizeOptionalText(city, 100),
+      sanitizeOptionalState(state),
+      sanitizedCpf,
+      experienceLevel && ['iniciante', 'intermediario', 'avancado', 'expert'].includes(String(experienceLevel))
+        ? experienceLevel
+        : null,
+      sanitizeStringArray(audioVisualRoles, 10),
+      sanitizeOptionalText(bio, 1000),
+      sanitizeOptionalUrl(portfolio, 500),
+      sanitizeOptionalUrl(linkedin, 500),
+      sanitizeOptionalInstagram(instagram),
+      sanitizeOptionalUrl(website, 500),
+      sanitizeOptionalText(previousExperience, 2000),
+      sanitizeStringArray(certifications, 20),
+      sanitizeStringArray(equipment, 20),
+      sanitizeStringArray(languages, 10),
+    ]
+  );
 
-  // Adicionar campos opcionais apenas se tiverem valor
-  if (phone && phone.trim()) { 
-    const phoneClean = phone.trim().replace(/\D/g, '');
-    if (phoneClean.length >= 10 && phoneClean.length <= 11 && phone.trim().length <= 20) {
-      profileFields.push('phone'); 
-      profileValues.push(phoneClean); 
-      paramCount++; 
-    }
-  }
-  if (address && address.trim()) { 
-    const addressClean = address.trim();
-    if (addressClean.length >= 5 && addressClean.length <= 500) {
-      profileFields.push('address'); 
-      profileValues.push(addressClean); 
-      paramCount++; 
-    }
-  }
-  if (city && city.trim()) { 
-    const cityClean = city.trim();
-    if (cityClean.length >= 2 && cityClean.length <= 100) {
-      profileFields.push('city'); 
-      profileValues.push(cityClean); 
-      paramCount++; 
-    }
-  }
-  if (state && state.trim()) { 
-    const stateClean = state.trim().toUpperCase();
-    const validStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
-    if (stateClean.length === 2 && validStates.includes(stateClean)) {
-      profileFields.push('state'); 
-      profileValues.push(stateClean); 
-      paramCount++; 
-    }
-  }
-  if (cpf && cpf.trim()) { 
-    const cpfClean = cpf.replace(/\D/g, '');
-    if (cpfClean.length === 11) {
-      profileFields.push('cpf'); 
-      profileValues.push(cpfClean); 
-      paramCount++; 
-    }
-  }
-  if (experienceLevel && ['iniciante', 'intermediario', 'avancado', 'expert'].includes(experienceLevel)) { 
-    profileFields.push('experience_level'); 
-    profileValues.push(experienceLevel); 
-    paramCount++; 
-  }
-  if (audioVisualRoles && audioVisualRoles.length > 0 && audioVisualRoles.some(role => role && role.trim())) { 
-    const cleanRoles = audioVisualRoles.filter(role => role && role.trim()).map(role => role.trim());
-    if (cleanRoles.length > 0 && cleanRoles.length <= 10) {
-      profileFields.push('audio_visual_roles'); 
-      profileValues.push(cleanRoles); 
-      paramCount++; 
-    }
-  }
-  if (bio && bio.trim()) { 
-    const bioClean = bio.trim();
-    if (bioClean.length >= 10 && bioClean.length <= 1000) {
-      profileFields.push('bio'); 
-      profileValues.push(bioClean); 
-      paramCount++; 
-    }
-  }
-  if (portfolio && portfolio.trim()) { 
-    const portfolioUrl = portfolio.trim().startsWith('http') ? portfolio.trim() : `https://${portfolio.trim()}`;
-    if (portfolioUrl.length <= 500) {
-      profileFields.push('portfolio'); 
-      profileValues.push(portfolioUrl); 
-      paramCount++; 
-    }
-  }
-  if (linkedin && linkedin.trim()) { 
-    const linkedinUrl = linkedin.trim().startsWith('http') ? linkedin.trim() : `https://${linkedin.trim()}`;
-    if (linkedinUrl.length <= 500) {
-      profileFields.push('linkedin'); 
-      profileValues.push(linkedinUrl); 
-      paramCount++; 
-    }
-  }
-  if (instagram && instagram.trim()) { 
-    const instagramClean = instagram.trim().startsWith('@') ? instagram.trim() : `@${instagram.trim()}`;
-    if (instagramClean.length <= 100) {
-      profileFields.push('instagram'); 
-      profileValues.push(instagramClean); 
-      paramCount++; 
-    }
-  }
-  if (website && website.trim()) { 
-    const websiteUrl = website.trim().startsWith('http') ? website.trim() : `https://${website.trim()}`;
-    if (websiteUrl.length <= 500) {
-      profileFields.push('website'); 
-      profileValues.push(websiteUrl); 
-      paramCount++; 
-    }
-  }
-  if (previousExperience && previousExperience.trim()) { 
-    const experienceClean = previousExperience.trim();
-    if (experienceClean.length >= 10 && experienceClean.length <= 2000) {
-      profileFields.push('previous_experience'); 
-      profileValues.push(experienceClean); 
-      paramCount++; 
-    }
-  }
-  if (certifications && certifications.length > 0 && certifications.some(c => c && c.trim())) { 
-    const cleanCertifications = certifications.filter(c => c && c.trim()).map(c => c.trim());
-    if (cleanCertifications.length > 0 && cleanCertifications.length <= 20) {
-      profileFields.push('certifications'); 
-      profileValues.push(cleanCertifications); 
-      paramCount++; 
-    }
-  }
-  if (equipment && equipment.length > 0 && equipment.some(e => e && e.trim())) { 
-    const cleanEquipment = equipment.filter(e => e && e.trim()).map(e => e.trim());
-    if (cleanEquipment.length > 0 && cleanEquipment.length <= 20) {
-      profileFields.push('equipment'); 
-      profileValues.push(cleanEquipment); 
-      paramCount++; 
-    }
-  }
-  if (languages && languages.length > 0 && languages.some(l => l && l.trim())) { 
-    const cleanLanguages = languages.filter(l => l && l.trim()).map(l => l.trim());
-    if (cleanLanguages.length > 0 && cleanLanguages.length <= 10) {
-      profileFields.push('languages'); 
-      profileValues.push(cleanLanguages); 
-      paramCount++; 
-    }
-  }
+  await recordTeamAssignment({
+    userId,
+    fromTeamType: null,
+    toTeamType: normalizedTeamType,
+    changedBy: req.user?.id,
+    notes: 'Cadastro inicial do freelancer',
+  });
 
-  // Construir a query dinamicamente
-  const placeholders = profileValues.map((_, index) => `$${index + 1}`).join(', ');
-  
-  await pool.query(`
-    INSERT INTO freelancer_profiles (${profileFields.join(', ')})
-    VALUES (${placeholders})
-    RETURNING id
-  `, profileValues);
+  const user = await fetchUserDetails(userId);
 
   res.status(201).json({
     message: 'Freelancer cadastrado com sucesso',
-    user: {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      teamType
-    }
+    user,
   });
 }));
 
 // Atualizar usuário
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const userId = req.user?.id;
+  const actorId = req.user?.id;
+  const actorRole = req.user?.role;
 
-  // Usuários só podem atualizar seus próprios dados, gestores podem atualizar todos
-  if (req.user?.role !== 'gestor' && userId !== id) {
+  if (actorRole !== 'gestor' && actorId !== id) {
     throw createError('Acesso negado', 403);
   }
 
-  const {
-    name,
-    phone,
-    address,
-    city,
-    state,
-    bio,
-    portfolio,
-    linkedin,
-    instagram,
-    website,
-    previousExperience,
-    certifications,
-    equipment,
-    languages,
-    teamType // Capturar se for enviado
-  } = req.body;
-
-  // Freelancers não podem alterar o tipo de equipe
-  if (req.user?.role === 'freelancer' && teamType !== undefined) {
-    throw createError('Freelancers não podem alterar seu tipo de equipe', 403);
-  }
-
-  // Atualizar dados básicos
-  if (name) {
+  if (Object.prototype.hasOwnProperty.call(req.body, 'name')) {
+    const validatedName = validateName(req.body.name);
     await pool.query(
       'UPDATE users SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [name, id]
+      [validatedName, id]
     );
   }
 
-  // Atualizar perfil de freelancer se existir
-  const profileResult = await pool.query(
-    'SELECT id FROM freelancer_profiles WHERE user_id = $1',
-    [id]
-  );
-
-  if (profileResult.rows.length > 0) {
-    // Campos que freelancers podem alterar
-    const updateFields = [
-      phone, address, city, state, bio, portfolio, linkedin,
-      instagram, website, previousExperience, certifications,
-      equipment, languages
-    ];
-
-    // Se for gestor, permitir alteração de teamType
-    if (req.user?.role === 'gestor' && teamType !== undefined) {
-      updateFields.push(teamType);
+  if (actorRole === 'gestor' && Object.prototype.hasOwnProperty.call(req.body, 'isActive')) {
+    if (typeof req.body.isActive !== 'boolean') {
+      throw createError('Status deve ser um valor booleano', 400);
     }
-
-    await pool.query(`
-      UPDATE freelancer_profiles SET
-        phone = COALESCE($1, phone),
-        address = COALESCE($2, address),
-        city = COALESCE($3, city),
-        state = COALESCE($4, state),
-        bio = COALESCE($5, bio),
-        portfolio = COALESCE($6, portfolio),
-        linkedin = COALESCE($7, linkedin),
-        instagram = COALESCE($8, instagram),
-        website = COALESCE($9, website),
-        previous_experience = COALESCE($10, previous_experience),
-        certifications = COALESCE($11, certifications),
-        equipment = COALESCE($12, equipment),
-        languages = COALESCE($13, languages),
-        ${req.user?.role === 'gestor' && teamType !== undefined ? 'team_type = COALESCE($14, team_type),' : ''}
-        updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ${req.user?.role === 'gestor' && teamType !== undefined ? '$15' : '$14'}
-    `, updateFields);
+    await pool.query(
+      'UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [req.body.isActive, id]
+    );
   }
 
+  const currentTeamType = await fetchCurrentTeamType(id);
+  let nextTeamType = currentTeamType;
+
+  if (Object.prototype.hasOwnProperty.call(req.body, 'teamType')) {
+    if (actorRole !== 'gestor') {
+      throw createError('Freelancers não podem alterar seu tipo de equipe', 403);
+    }
+
+    const normalizedTeamType = normalizeNullableTeamType(req.body.teamType);
+    if (!normalizedTeamType || !isCanonicalTeamType(normalizedTeamType)) {
+      throw createError(
+        'Tipo de equipe inválido. Use iniciante, intermediario, avancado ou sem_equipe',
+        400
+      );
+    }
+
+    nextTeamType = normalizedTeamType;
+    await pool.query(
+      `
+      UPDATE freelancer_profiles
+      SET team_type = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $2
+    `,
+      [normalizedTeamType, id]
+    );
+  }
+
+  await updateProfileFields(id, req.body as Record<string, unknown>);
+
+  if (actorRole === 'gestor' && currentTeamType !== nextTeamType && nextTeamType) {
+    await recordTeamAssignment({
+      userId: id,
+      fromTeamType: currentTeamType,
+      toTeamType: nextTeamType,
+      changedBy: actorId,
+      notes: typeof req.body.notes === 'string' ? req.body.notes : null,
+    });
+  }
+
+  const user = await fetchUserDetails(id);
+
   res.json({
-    message: 'Usuário atualizado com sucesso'
+    message: 'Usuário atualizado com sucesso',
+    user,
   });
 }));
 
 // Atualizar tipo de equipe (apenas gestores)
 router.patch('/:id/team', requireGestor, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { teamType } = req.body;
+  const normalizedTeamType = normalizeNullableTeamType(req.body.teamType);
 
-  if (!['equipe_a', 'equipe_b', 'sem_equipe'].includes(teamType)) {
-    throw createError('Tipo de equipe inválido', 400);
+  if (!normalizedTeamType || !isCanonicalTeamType(normalizedTeamType)) {
+    throw createError(
+      'Tipo de equipe inválido. Use iniciante, intermediario, avancado ou sem_equipe',
+      400
+    );
   }
+
+  const currentTeamType = await fetchCurrentTeamType(id);
 
   await pool.query(
     'UPDATE freelancer_profiles SET team_type = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-    [teamType, id]
+    [normalizedTeamType, id]
   );
+
+  const assignment = currentTeamType !== normalizedTeamType
+    ? await recordTeamAssignment({
+        userId: id,
+        fromTeamType: currentTeamType,
+        toTeamType: normalizedTeamType,
+        changedBy: req.user?.id,
+        notes: typeof req.body.notes === 'string' ? req.body.notes : null,
+      })
+    : null;
+
+  const user = await fetchUserDetails(id);
 
   res.json({
     message: 'Tipo de equipe atualizado com sucesso',
-    teamType
+    teamType: normalizedTeamType,
+    assignment,
+    user,
   });
 }));
 
@@ -521,9 +544,12 @@ router.patch('/:id/status', requireGestor, asyncHandler(async (req: Request, res
     [isActive, id]
   );
 
+  const user = await fetchUserDetails(id);
+
   res.json({
     message: `Usuário ${isActive ? 'ativado' : 'desativado'} com sucesso`,
-    isActive
+    isActive,
+    user,
   });
 }));
 

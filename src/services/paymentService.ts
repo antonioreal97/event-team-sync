@@ -186,8 +186,9 @@ export const generateFinancialSummary = async (startDate: Date, endDate: Date): 
     const paymentsByEventType: Record<string, number> = {};
 
     // Estas informações serão implementadas quando tivermos dados completos
-    paymentsByTeam['equipe_a'] = 0;
-    paymentsByTeam['equipe_b'] = 0;
+    paymentsByTeam['iniciante'] = 0;
+    paymentsByTeam['intermediario'] = 0;
+    paymentsByTeam['avancado'] = 0;
     paymentsByEventType['normal'] = 0;
     paymentsByEventType['especial'] = 0;
 

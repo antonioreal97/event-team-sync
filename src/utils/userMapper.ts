@@ -1,4 +1,5 @@
 import { User } from '@/types';
+import { normalizeTeamType } from '@/lib/teamDomain';
 
 // Helper function to map Supabase user data to User type
 export const mapSupabaseUserToUser = (dbUser: any): User => {
@@ -13,7 +14,9 @@ export const mapSupabaseUserToUser = (dbUser: any): User => {
     isActive: dbUser.is_active,
     createdAt: dbUser.created_at,
     updatedAt: dbUser.updated_at,
-    teamType: freelancerProfile?.team_type as 'equipe_a' | 'equipe_b' | 'sem_equipe' | undefined,
+    teamType: freelancerProfile?.team_type
+      ? normalizeTeamType(freelancerProfile.team_type)
+      : undefined,
     phone: freelancerProfile?.phone,
     address: freelancerProfile?.address,
     city: freelancerProfile?.city,

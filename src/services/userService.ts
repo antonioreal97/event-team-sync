@@ -1,23 +1,11 @@
 import { User, TeamType, ExperienceLevel, AudioVisualRole } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { mapSupabaseUserToUser, mapBasicUserToUser } from '@/utils/userMapper';
+import { apiFetch } from '@/lib/api';
+import { mapApiProfileRowToUser } from '@/lib/mapApiProfileToUser';
 
-// User service functions - Conectado ao Supabase
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles(*)
-      `)
-      .eq('role', 'freelancer');
-
-    if (error) {
-      throw new Error(`Erro ao buscar usuários: ${error.message}`);
-    }
-
-    return (data || []).map(mapSupabaseUserToUser);
+    const data = await apiFetch<{ users: Record<string, unknown>[] }>('/users');
+    return (data.users || []).map(mapApiProfileRowToUser);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     return [];
@@ -26,20 +14,8 @@ export const getAllUsers = async (): Promise<User[]> => {
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles(*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      throw new Error(`Erro ao buscar usuário: ${error.message}`);
-    }
-
-    return data ? mapSupabaseUserToUser(data) : undefined;
+    const data = await apiFetch<{ user: Record<string, unknown> }>(`/users/${id}`);
+    return data.user ? mapApiProfileRowToUser(data.user) : undefined;
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
     return undefined;
@@ -48,19 +24,8 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 
 export const getUsersByRole = async (role: string): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles(*)
-      `)
-      .eq('role', role);
-
-    if (error) {
-      throw new Error(`Erro ao buscar usuários por role: ${error.message}`);
-    }
-
-    return (data || []).map(mapSupabaseUserToUser);
+    const users = await getAllUsers();
+    return users.filter((user) => user.role === role);
   } catch (error) {
     console.error('Erro ao buscar usuários por role:', error);
     return [];
@@ -68,25 +33,14 @@ export const getUsersByRole = async (role: string): Promise<User[]> => {
 };
 
 export const getFreelancers = async (): Promise<User[]> => {
-  return getUsersByRole('freelancer');
+  const users = await getAllUsers();
+  return users.filter((user) => user.role === 'freelancer' || user.role === 'lider_freelancer');
 };
 
 export const getFreelancersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles!inner(*)
-      `)
-      .eq('role', 'freelancer')
-      .eq('freelancer_profiles.team_type', teamType);
-
-    if (error) {
-      throw new Error(`Erro ao buscar freelancers por equipe: ${error.message}`);
-    }
-
-    return (data || []).map(mapSupabaseUserToUser);
+    const freelancers = await getFreelancers();
+    return freelancers.filter((user) => (user.teamType || 'sem_equipe') === teamType);
   } catch (error) {
     console.error('Erro ao buscar freelancers por equipe:', error);
     return [];
@@ -115,164 +69,56 @@ export const createFreelancer = async (freelancerData: {
   equipment?: string[];
   languages?: string[];
 }): Promise<User> => {
-  try {
-    // Criar usuário no Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: freelancerData.email,
-      password: freelancerData.password,
-    });
-
-    if (authError) {
-      throw new Error(`Erro na autenticação: ${authError.message}`);
-    }
-
-    if (!authData.user) {
-      throw new Error('Falha ao criar usuário');
-    }
-
-    // Criar registro na tabela users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert({
-        id: authData.user.id,
-        email: freelancerData.email,
-        name: freelancerData.name,
-        role: 'freelancer',
-        password_hash: 'managed_by_supabase_auth',
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      throw new Error(`Erro ao criar usuário: ${userError.message}`);
-    }
-
-    // Criar perfil de freelancer
-    const { error: profileError } = await supabase
-      .from('freelancer_profiles')
-      .insert({
-        user_id: authData.user.id,
-        team_type: freelancerData.teamType,
-        phone: freelancerData.phone,
-        address: freelancerData.address,
-        city: freelancerData.city,
-        state: freelancerData.state,
-        cpf: freelancerData.cpf,
-        experience_level: freelancerData.experienceLevel,
-        audio_visual_roles: freelancerData.audioVisualRoles,
-        bio: freelancerData.bio,
-        portfolio: freelancerData.portfolio,
-        linkedin: freelancerData.linkedin,
-        instagram: freelancerData.instagram,
-        website: freelancerData.website,
-        previous_experience: freelancerData.previousExperience,
-        certifications: freelancerData.certifications,
-        equipment: freelancerData.equipment,
-        languages: freelancerData.languages,
-      });
-
-    if (profileError) {
-      throw new Error(`Erro ao criar perfil: ${profileError.message}`);
-    }
-
-    return mapBasicUserToUser(userData);
-  } catch (error) {
-    console.error('Erro ao criar freelancer:', error);
-    throw error;
-  }
+  const data = await apiFetch<{ user: Record<string, unknown> }>('/users', {
+    method: 'POST',
+    body: JSON.stringify(freelancerData),
+  });
+  return mapApiProfileRowToUser(data.user);
 };
 
 export const updateUser = async (id: string, userData: Partial<User>): Promise<User> => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .update(userData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Erro ao atualizar usuário: ${error.message}`);
-    }
-
-    return mapBasicUserToUser(data);
-  } catch (error) {
-    console.error('Erro ao atualizar usuário:', error);
-    throw error;
-  }
+  const data = await apiFetch<{ user: Record<string, unknown> }>(`/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(userData),
+  });
+  return mapApiProfileRowToUser(data.user);
 };
 
-export const updateUserTeam = async (id: string, teamType: TeamType): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('freelancer_profiles')
-      .update({ team_type: teamType })
-      .eq('user_id', id);
-
-    if (error) {
-      throw new Error(`Erro ao atualizar equipe do usuário: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Erro ao atualizar equipe do usuário:', error);
-    throw error;
-  }
+export const updateUserTeam = async (id: string, teamType: TeamType, notes?: string): Promise<void> => {
+  await apiFetch(`/users/${id}/team`, {
+    method: 'PATCH',
+    body: JSON.stringify({ teamType, notes }),
+  });
 };
 
 export const updateUserStatus = async (id: string, isActive: boolean): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({ is_active: isActive })
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Erro ao atualizar status do usuário: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Erro ao atualizar status do usuário:', error);
-    throw error;
-  }
+  await apiFetch(`/users/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  });
 };
 
+// Compatibilidade: remoção agora significa desativação.
 export const deleteUser = async (id: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Erro ao excluir usuário: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Erro ao excluir usuário:', error);
-    throw error;
-  }
+  await updateUserStatus(id, false);
 };
 
-export const getUserAvailability = async (userId: string, startDate: Date, endDate: Date): Promise<{
+export const getUserAvailability = async (
+  _userId: string,
+  _startDate: Date,
+  _endDate: Date
+): Promise<{
   isAvailable: boolean;
   conflictingEvents: string[];
 }> => {
-  try {
-    // Esta funcionalidade será implementada quando tivermos a rota de disponibilidade
-    // Por enquanto, retornamos disponível
-    return {
-      isAvailable: true,
-      conflictingEvents: [],
-    };
-  } catch (error) {
-    console.error('Erro ao verificar disponibilidade:', error);
-    return {
-      isAvailable: false,
-      conflictingEvents: [],
-    };
-  }
+  return {
+    isAvailable: true,
+    conflictingEvents: [],
+  };
 };
 
 export const getAvailableUsersForEvent = async (
-  eventId: string,
+  _eventId: string,
   requiredRoles: AudioVisualRole[],
   startDate: Date,
   endDate: Date
@@ -284,14 +130,10 @@ export const getAvailableUsersForEvent = async (
     for (const freelancer of freelancers) {
       if (!freelancer.isActive) continue;
 
-      // Verificar se tem as roles necessárias
-      const hasRequiredRole = requiredRoles.some(role => 
-        freelancer.audioVisualRoles?.includes(role)
-      );
-
+      const hasRequiredRole = requiredRoles.length === 0
+        || requiredRoles.some((role) => freelancer.audioVisualRoles?.includes(role));
       if (!hasRequiredRole) continue;
 
-      // Verificar disponibilidade
       const availability = await getUserAvailability(freelancer.id, startDate, endDate);
       if (availability.isAvailable) {
         availableUsers.push(freelancer);
@@ -309,11 +151,11 @@ export const searchUsers = async (query: string): Promise<User[]> => {
   try {
     const users = await getAllUsers();
     const lowerQuery = query.toLowerCase();
-    
-    return users.filter(user => 
-      user.name.toLowerCase().includes(lowerQuery) ||
-      user.email.toLowerCase().includes(lowerQuery) ||
-      user.audioVisualRoles?.some(role => role.toLowerCase().includes(lowerQuery))
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(lowerQuery)
+        || user.email.toLowerCase().includes(lowerQuery)
+        || user.audioVisualRoles?.some((role) => role.toLowerCase().includes(lowerQuery))
     );
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
@@ -321,31 +163,34 @@ export const searchUsers = async (query: string): Promise<User[]> => {
   }
 };
 
-// Team management functions
 export const getTeamStatistics = async (): Promise<{
-  equipe_a: { count: number; users: User[] };
-  equipe_b: { count: number; users: User[] };
+  iniciante: { count: number; users: User[] };
+  intermediario: { count: number; users: User[] };
+  avancado: { count: number; users: User[] };
   sem_equipe: { count: number; users: User[] };
 }> => {
   try {
     const freelancers = await getFreelancers();
-    
-    const equipe_a = freelancers.filter(user => user.teamType === 'equipe_a');
-    const equipe_b = freelancers.filter(user => user.teamType === 'equipe_b');
-    const sem_equipe = freelancers.filter(user => 
-      !user.teamType || user.teamType === 'sem_equipe'
+
+    const iniciante = freelancers.filter((user) => user.teamType === 'iniciante');
+    const intermediario = freelancers.filter((user) => user.teamType === 'intermediario');
+    const avancado = freelancers.filter((user) => user.teamType === 'avancado');
+    const sem_equipe = freelancers.filter(
+      (user) => !user.teamType || user.teamType === 'sem_equipe'
     );
 
     return {
-      equipe_a: { count: equipe_a.length, users: equipe_a },
-      equipe_b: { count: equipe_b.length, users: equipe_b },
+      iniciante: { count: iniciante.length, users: iniciante },
+      intermediario: { count: intermediario.length, users: intermediario },
+      avancado: { count: avancado.length, users: avancado },
       sem_equipe: { count: sem_equipe.length, users: sem_equipe },
     };
   } catch (error) {
     console.error('Erro ao buscar estatísticas de equipe:', error);
     return {
-      equipe_a: { count: 0, users: [] },
-      equipe_b: { count: 0, users: [] },
+      iniciante: { count: 0, users: [] },
+      intermediario: { count: 0, users: [] },
+      avancado: { count: 0, users: [] },
       sem_equipe: { count: 0, users: [] },
     };
   }
@@ -356,10 +201,11 @@ export const getAvailableUsersForEventWithPriority = async (
   requiredRoles: AudioVisualRole[],
   startDate: Date,
   endDate: Date,
-  teamPriority: 'equipe_a' | 'equipe_b'
+  _teamPriority: 'iniciante' | 'intermediario' | 'avancado'
 ): Promise<{
-  equipe_a: User[];
-  equipe_b: User[];
+  iniciante: User[];
+  intermediario: User[];
+  avancado: User[];
   sem_equipe: User[];
 }> => {
   try {
@@ -370,21 +216,21 @@ export const getAvailableUsersForEventWithPriority = async (
       endDate
     );
 
-    const equipe_a = availableUsers.filter(user => user.teamType === 'equipe_a');
-    const equipe_b = availableUsers.filter(user => user.teamType === 'equipe_b');
-    const sem_equipe = availableUsers.filter(user => 
-      !user.teamType || user.teamType === 'sem_equipe'
-    );
-
-    return { equipe_a, equipe_b, sem_equipe };
+    return {
+      iniciante: availableUsers.filter((user) => user.teamType === 'iniciante'),
+      intermediario: availableUsers.filter((user) => user.teamType === 'intermediario'),
+      avancado: availableUsers.filter((user) => user.teamType === 'avancado'),
+      sem_equipe: availableUsers.filter(
+        (user) => !user.teamType || user.teamType === 'sem_equipe'
+      ),
+    };
   } catch (error) {
     console.error('Erro ao buscar usuários com prioridade:', error);
     return {
-      equipe_a: [],
-      equipe_b: [],
+      iniciante: [],
+      intermediario: [],
+      avancado: [],
       sem_equipe: [],
     };
   }
 };
-
-

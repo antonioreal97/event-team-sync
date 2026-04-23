@@ -1,13 +1,13 @@
 import { TeamAssignment, User, TeamType } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { mapSupabaseUserToUser } from '@/utils/userMapper';
+import { apiFetch } from '@/lib/api';
+import { mapApiProfileRowToUser } from '@/lib/mapApiProfileToUser';
+import { mapTeamAssignmentFromApi } from '@/lib/teamDomain';
+import { getAllUsers } from '@/services/userService';
 
-// Team service functions - Conectado ao PostgreSQL
 export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos array vazio
-    return [];
+    const data = await apiFetch<{ assignments: Record<string, unknown>[] }>('/teams/assignments');
+    return (data.assignments || []).map(mapTeamAssignmentFromApi);
   } catch (error) {
     console.error('Erro ao buscar atribuições de equipe:', error);
     return [];
@@ -16,78 +16,27 @@ export const getAllTeamAssignments = async (): Promise<TeamAssignment[]> => {
 
 export const getUsersByTeam = async (teamType: TeamType): Promise<User[]> => {
   try {
-    let query = supabase
-      .from('users')
-      .select(`
-        *,
-        freelancer_profile:freelancer_profiles(*)
-      `)
-      .eq('role', 'freelancer');
-
-    // Para usuários sem equipe, precisamos incluir aqueles que não têm perfil ou têm team_type null/undefined
-    if (teamType === 'sem_equipe') {
-      const { data, error } = await query;
-      
-      if (error) {
-        throw new Error(`Erro ao buscar usuários sem equipe: ${error.message}`);
-      }
-
-      // Filtrar usuários que não têm perfil ou têm team_type null/undefined/sem_equipe
-      const filteredData = (data || []).filter(user => {
-        const freelancerProfile = user.freelancer_profile?.[0];
-        return !freelancerProfile || 
-               !freelancerProfile.team_type || 
-               freelancerProfile.team_type === 'sem_equipe';
-      });
-
-      return filteredData.map(mapSupabaseUserToUser);
-    } else {
-      // Para outras equipes, usar inner join
-      const { data, error } = await query
-        .eq('freelancer_profiles.team_type', teamType);
-
-      if (error) {
-        throw new Error(`Erro ao buscar usuários da equipe: ${error.message}`);
-      }
-
-      return (data || []).map(mapSupabaseUserToUser);
-    }
+    const users = await getAllUsers();
+    return users.filter((user) => (user.teamType || 'sem_equipe') === teamType);
   } catch (error) {
     console.error('Erro ao buscar usuários da equipe:', error);
     return [];
   }
 };
 
-export const assignUserToTeam = async (userId: string, teamType: TeamType, notes?: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('freelancer_profiles')
-      .update({ team_type: teamType })
-      .eq('user_id', userId);
-
-    if (error) {
-      throw new Error(`Erro ao atribuir usuário à equipe: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Erro ao atribuir usuário à equipe:', error);
-    throw error;
-  }
+export const assignUserToTeam = async (
+  userId: string,
+  teamType: TeamType,
+  notes?: string
+): Promise<void> => {
+  await apiFetch(`/users/${userId}/team`, {
+    method: 'PATCH',
+    body: JSON.stringify({ teamType, notes }),
+  });
 };
 
-export const removeUserFromTeam = async (userId: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('freelancer_profiles')
-      .update({ team_type: 'sem_equipe' })
-      .eq('user_id', userId);
-
-    if (error) {
-      throw new Error(`Erro ao remover usuário da equipe: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Erro ao remover usuário da equipe:', error);
-    throw error;
-  }
+export const removeUserFromTeam = async (userId: string, notes?: string): Promise<void> => {
+  await assignUserToTeam(userId, 'sem_equipe', notes);
 };
 
 export const getTeamStatistics = async (): Promise<{
@@ -98,27 +47,16 @@ export const getTeamStatistics = async (): Promise<{
   sem_equipe: number;
 }> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        id,
-        freelancer_profile:freelancer_profiles(team_type)
-      `)
-      .eq('role', 'freelancer');
-
-    if (error) {
-      throw new Error(`Erro ao buscar estatísticas de equipe: ${error.message}`);
-    }
-
-    const stats = {
-      total: data?.length || 0,
-      iniciante: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'iniciante').length || 0,
-      intermediario: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'intermediario').length || 0,
-      avancado: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'avancado').length || 0,
-      sem_equipe: data?.filter(u => (u.freelancer_profile as any)?.team_type === 'sem_equipe' || !(u.freelancer_profile as any)?.team_type).length || 0,
-    };
-
-    return stats;
+    const data = await apiFetch<{
+      stats: {
+        total: number;
+        iniciante: number;
+        intermediario: number;
+        avancado: number;
+        sem_equipe: number;
+      };
+    }>('/teams');
+    return data.stats;
   } catch (error) {
     console.error('Erro ao buscar estatísticas de equipe:', error);
     return {
@@ -132,11 +70,11 @@ export const getTeamStatistics = async (): Promise<{
 };
 
 export const getAvailableUsersForEventWithPriority = async (
-  eventId: string,
-  requiredRoles: string[],
-  startDate: Date,
-  endDate: Date,
-  teamPriority: 'iniciante' | 'intermediario' | 'avancado'
+  _eventId: string,
+  _requiredRoles: string[],
+  _startDate: Date,
+  _endDate: Date,
+  _teamPriority: 'iniciante' | 'intermediario' | 'avancado'
 ): Promise<{
   iniciante: User[];
   intermediario: User[];
@@ -144,13 +82,12 @@ export const getAvailableUsersForEventWithPriority = async (
   sem_equipe: User[];
 }> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos a rota específica
-    // Por enquanto, retornamos arrays vazios
+    const buckets = await getActiveFreelancersByTeam();
     return {
-      iniciante: [],
-      intermediario: [],
-      avancado: [],
-      sem_equipe: [],
+      iniciante: buckets.iniciante.users,
+      intermediario: buckets.intermediario.users,
+      avancado: buckets.avancado.users,
+      sem_equipe: buckets.sem_equipe.users,
     };
   } catch (error) {
     console.error('Erro ao buscar usuários com prioridade:', error);
@@ -163,65 +100,42 @@ export const getAvailableUsersForEventWithPriority = async (
   }
 };
 
-// Team allocation functions
 export const allocateUserToEvent = async (allocationData: {
   eventId: string;
   userId: string;
   assignedRole: string;
   totalDays: number;
   notes?: string;
-}): Promise<any> => {
-  try {
-    // Esta funcionalidade será implementada quando tivermos as tabelas de alocação no Supabase
-    // Por enquanto, retornamos dados mock
-    return {
-      id: Date.now().toString(),
-      ...allocationData,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('Erro ao alocar usuário ao evento:', error);
-    throw error;
-  }
+}): Promise<Record<string, unknown>> => {
+  return apiFetch('/teams/allocate', {
+    method: 'POST',
+    body: JSON.stringify(allocationData),
+  });
 };
 
 export const removeUserFromEvent = async (allocationId: string): Promise<void> => {
-  try {
-    // Esta funcionalidade será implementada quando tivermos as tabelas de alocação no Supabase
-    console.log('Removendo usuário do evento:', allocationId);
-  } catch (error) {
-    console.error('Erro ao remover usuário do evento:', error);
-    throw error;
-  }
+  await apiFetch(`/teams/allocate/${allocationId}`, { method: 'DELETE' });
 };
 
-// Attendance management
 export const updateAttendanceStatus = async (
   allocationId: string,
   date: string,
   status: 'present' | 'absent' | 'late',
   notes?: string
 ): Promise<void> => {
-  try {
-    // Esta funcionalidade será implementada quando tivermos as tabelas de presença no Supabase
-    console.log('Atualizando status de presença:', { allocationId, date, status, notes });
-  } catch (error) {
-    console.error('Erro ao atualizar status de presença:', error);
-    throw error;
-  }
+  await apiFetch(`/teams/attendance/${allocationId}`, {
+    method: 'POST',
+    body: JSON.stringify({ date, status, notes }),
+  });
 };
 
 export const confirmDailyPayment = async (allocationId: string, date: string): Promise<void> => {
-  try {
-    // Esta funcionalidade será implementada quando tivermos as tabelas de pagamento no Supabase
-    console.log('Confirmando pagamento diário:', { allocationId, date });
-  } catch (error) {
-    console.error('Erro ao confirmar pagamento diário:', error);
-    throw error;
-  }
+  await apiFetch(`/teams/payment/${allocationId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ date }),
+  });
 };
 
-// Team performance and analytics
 export const getTeamPerformance = async (teamType: TeamType): Promise<{
   totalMembers: number;
   activeMembers: number;
@@ -231,11 +145,10 @@ export const getTeamPerformance = async (teamType: TeamType): Promise<{
 }> => {
   try {
     const users = await getUsersByTeam(teamType);
-    
-    const activeMembers = users.filter(user => user.isActive).length;
+    const activeMembers = users.filter((user) => user.isActive).length;
     const totalRating = users.reduce((sum, user) => sum + (user.averageRating || 0), 0);
     const averageRating = users.length > 0 ? totalRating / users.length : 0;
-    
+
     return {
       totalMembers: users.length,
       activeMembers,
@@ -258,21 +171,20 @@ export const getTeamPerformance = async (teamType: TeamType): Promise<{
 export const getTeamWorkload = async (teamType: TeamType): Promise<{
   availableMembers: number;
   busyMembers: number;
+  totalCapacity: number;
   utilizationRate: number;
 }> => {
   try {
     const users = await getUsersByTeam(teamType);
-    const activeUsers = users.filter(user => user.isActive);
-    
-    // Por enquanto, assumimos que todos estão disponíveis
-    // Esta lógica será implementada quando tivermos sistema de disponibilidade
-    const availableMembers = activeUsers.length;
-    const busyMembers = 0;
-    const utilizationRate = availableMembers > 0 ? (busyMembers / availableMembers) * 100 : 0;
-    
+    const availableMembers = users.filter((user) => user.isActive).length;
+    const busyMembers = users.filter((user) => !user.isActive).length;
+    const totalCapacity = users.length;
+    const utilizationRate = totalCapacity > 0 ? (busyMembers / totalCapacity) * 100 : 0;
+
     return {
       availableMembers,
       busyMembers,
+      totalCapacity,
       utilizationRate: Math.round(utilizationRate * 100) / 100,
     };
   } catch (error) {
@@ -280,6 +192,7 @@ export const getTeamWorkload = async (teamType: TeamType): Promise<{
     return {
       availableMembers: 0,
       busyMembers: 0,
+      totalCapacity: 0,
       utilizationRate: 0,
     };
   }
@@ -292,35 +205,31 @@ export const getActiveFreelancersByTeam = async (): Promise<{
   sem_equipe: { total: number; active: number; users: User[] };
 }> => {
   try {
-    // Usar as funções getUsersByTeam para garantir consistência
-    const [iniciante_users, intermediario_users, avancado_users, sem_equipe_users] = await Promise.all([
-      getUsersByTeam('iniciante'),
-      getUsersByTeam('intermediario'),
-      getUsersByTeam('avancado'),
-      getUsersByTeam('sem_equipe')
-    ]);
+    const data = await apiFetch<Record<string, { total: number; active: number; users: Record<string, unknown>[] }>>(
+      '/teams/active-freelancers'
+    );
 
     return {
-      iniciante: { 
-        total: iniciante_users.length, 
-        active: iniciante_users.filter(u => u.isActive).length, 
-        users: iniciante_users 
+      iniciante: {
+        total: data.iniciante?.total || 0,
+        active: data.iniciante?.active || 0,
+        users: (data.iniciante?.users || []).map(mapApiProfileRowToUser),
       },
-      intermediario: { 
-        total: intermediario_users.length, 
-        active: intermediario_users.filter(u => u.isActive).length, 
-        users: intermediario_users 
+      intermediario: {
+        total: data.intermediario?.total || 0,
+        active: data.intermediario?.active || 0,
+        users: (data.intermediario?.users || []).map(mapApiProfileRowToUser),
       },
-      avancado: { 
-        total: avancado_users.length, 
-        active: avancado_users.filter(u => u.isActive).length, 
-        users: avancado_users 
+      avancado: {
+        total: data.avancado?.total || 0,
+        active: data.avancado?.active || 0,
+        users: (data.avancado?.users || []).map(mapApiProfileRowToUser),
       },
-      sem_equipe: { 
-        total: sem_equipe_users.length, 
-        active: sem_equipe_users.filter(u => u.isActive).length, 
-        users: sem_equipe_users 
-      }
+      sem_equipe: {
+        total: data.sem_equipe?.total || 0,
+        active: data.sem_equipe?.active || 0,
+        users: (data.sem_equipe?.users || []).map(mapApiProfileRowToUser),
+      },
     };
   } catch (error) {
     console.error('Erro ao buscar freelancers ativos:', error);
@@ -328,17 +237,19 @@ export const getActiveFreelancersByTeam = async (): Promise<{
       iniciante: { total: 0, active: 0, users: [] },
       intermediario: { total: 0, active: 0, users: [] },
       avancado: { total: 0, active: 0, users: [] },
-      sem_equipe: { total: 0, active: 0, users: [] }
+      sem_equipe: { total: 0, active: 0, users: [] },
     };
   }
 };
 
 export const isEventTeamFullyConfirmed = async (eventId: string): Promise<boolean> => {
   try {
-    // Esta funcionalidade será implementada quando tivermos as tabelas de confirmação no Supabase
-    return false;
+    const data = await apiFetch<{ isFullyConfirmed: boolean }>(
+      `/teams/event/${eventId}/confirmation-status`
+    );
+    return Boolean(data.isFullyConfirmed);
   } catch (error) {
-    console.error('Erro ao verificar status da equipe:', error);
+    console.error('Erro ao verificar confirmação da equipe:', error);
     return false;
   }
 };
