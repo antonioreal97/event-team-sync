@@ -1,6 +1,8 @@
 
 import { Notification } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseTyped } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase: any = supabaseTyped;
 
 // Notification service functions - Conectado ao Supabase
 export const getAllNotifications = async (): Promise<Notification[]> => {
