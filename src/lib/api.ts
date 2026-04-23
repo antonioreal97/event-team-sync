@@ -296,7 +296,7 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
         total_days: body.totalDays || 1,
         notes: body.notes,
       };
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('team_allocations').insert(row).select().maybeSingle();
       if (error) throw error;
       return { allocation: data };
