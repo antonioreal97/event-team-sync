@@ -8,6 +8,7 @@ import { Event } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteEvent } from '@/services/eventService';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 import {
   Dialog,
   DialogContent,
@@ -30,22 +31,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Log temporário para debug
-  console.log('🎯 EVENTCARD RECEBEU:', {
-    id: event.id,
-    title: event.title,
-    startDate: event.startDate,
-    endDate: event.endDate,
-    startDateType: typeof event.startDate,
-    endDateType: typeof event.endDate
-  });
-
   const formatDate = (dateString: string | null | undefined) => {
-    console.log('📅 formatDate chamada com:', dateString, 'Tipo:', typeof dateString);
-    
     try {
       if (!dateString) {
-        console.log('❌ Data vazia, retornando "Data não informada"');
         return 'Data não informada';
       }
       
@@ -64,24 +52,21 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
         date = new Date(dateString);
       }
       
-      console.log('📅 Data criada:', date, 'É válida?', !isNaN(date.getTime()));
-      
       if (isNaN(date.getTime())) {
-        console.warn('❌ Data inválida detectada:', dateString);
+        logger.warn('Data inválida detectada:', dateString);
         return 'Data inválida';
       }
-      
+
       const formatted = date.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         weekday: 'long'
       });
-      
-      console.log('✅ Data formatada:', formatted);
+
       return formatted;
     } catch (error) {
-      console.error('❌ Erro ao formatar data:', error, 'String original:', dateString);
+      logger.error('Erro ao formatar data:', error, 'String original:', dateString);
       return 'Data inválida';
     }
   };
@@ -106,7 +91,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
       }
       
       if (isNaN(date.getTime())) {
-        console.warn('Horário inválido detectado:', dateString);
+        logger.warn('Horário inválido detectado:', dateString);
         return 'Horário inválido';
       }
       
@@ -117,7 +102,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
       
       return formatted;
     } catch (error) {
-      console.error('Erro ao formatar horário:', error, 'String original:', dateString);
+      logger.error('Erro ao formatar horário:', error, 'String original:', dateString);
       return 'Horário inválido';
     }
   };
@@ -178,7 +163,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
       
       setShowDeleteDialog(false);
     } catch (error) {
-      console.error('Erro ao excluir evento:', error);
+      logger.error('Erro ao excluir evento:', error);
       toast({
         title: 'Erro',
         description: 'Não foi possível excluir o evento. Tente novamente.',

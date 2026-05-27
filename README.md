@@ -147,15 +147,30 @@ equipe-s4u/
 │   ├── pages/               # Páginas da aplicação
 │   ├── services/            # Serviços de API
 │   ├── types/               # Definições de tipos TypeScript
-│   ├── utils/               # Utilitários e helpers
+│   ├── utils/               # Utilitários e helpers (inclui logger.ts)
 │   └── config/              # Configurações
 ├── server/                  # Backend Node.js
 │   ├── routes/              # Rotas da API
 │   ├── middleware/          # Middlewares
 │   └── config/              # Configurações do servidor
 ├── database/                # Scripts SQL
+├── scripts/                 # Scripts utilitários de manutenção/debug
+├── docs/                    # Documentação detalhada do projeto
 └── docker-compose.yml       # Configuração Docker
 ```
+
+## 📚 **Documentação**
+
+Documentação detalhada em [`docs/`](docs/):
+
+| Arquivo | Descrição |
+|---------|-----------|
+| [ARQUITETURA_APLICACAO.md](docs/ARQUITETURA_APLICACAO.md) | Arquitetura geral do sistema |
+| [README-DOCKER.md](docs/README-DOCKER.md) | Instruções para Docker |
+| [INSTRUCOES-WINDOWS.md](docs/INSTRUCOES-WINDOWS.md) | Setup no Windows |
+| [MIGRACAO_SUPABASE.md](docs/MIGRACAO_SUPABASE.md) | Migração para Supabase |
+| [FUNCIONALIDADE_CONFIRMACAO_INTERESSE.md](docs/FUNCIONALIDADE_CONFIRMACAO_INTERESSE.md) | Sistema de confirmação de interesse |
+| [VALIDACOES_FRONTEND.md](docs/VALIDACOES_FRONTEND.md) | Validações no frontend |
 
 ## 📡 **API Endpoints**
 

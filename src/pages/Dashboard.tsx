@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event, TeamAllocation, User } from '@/types';
 import { getAllEvents as getEvents, getTeamAllocationsForEvent } from '@/services/eventService';
+import { logger } from '@/utils/logger';
 import { getTeamStatistics, getActiveFreelancersByTeam, isEventTeamFullyConfirmed } from '@/services/teamService';
 import { filterEventForUser, getEventDisplayInfo, getEventDescription } from '@/services/eventVisibilityService';
 import { format } from 'date-fns';
@@ -41,56 +42,44 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Iniciando busca de dados do dashboard...');
-      
+
       const [eventsData, teamStatsData, activeFreelancersData] = await Promise.all([
         getEvents(),
         isGestor ? getTeamStatistics() : null,
         isGestor ? getActiveFreelancersByTeam() : null
       ]);
-      
-      console.log('📊 Dados recebidos:', {
-        events: eventsData?.length || 0,
-        teamStats: teamStatsData,
-        activeFreelancers: activeFreelancersData
-      });
-      
+
       setEvents(eventsData);
       setTeamStats(teamStatsData);
       setActiveFreelancers(activeFreelancersData);
-      
+
       // Buscar alocações apenas se for gestor
       if (isGestor) {
-        console.log('👨‍💼 Buscando alocações de equipe...');
         const allocations = await Promise.all(
           eventsData.map(event => getTeamAllocationsForEvent(event.id))
         );
         setTeamAllocations(allocations.flat());
-        
+
         // Verificar status de confirmação de cada evento
-        console.log('✅ Verificando status de confirmação dos eventos...');
         const confirmationStatuses = await Promise.all(
           eventsData.map(async (event) => {
             try {
               const isConfirmed = await isEventTeamFullyConfirmed(event.id);
-              console.log(`Evento ${event.title}: ${isConfirmed ? 'Confirmado' : 'Pendente'}`);
               return { [event.id]: isConfirmed };
             } catch (error) {
-              console.error(`Erro ao verificar evento ${event.title}:`, error);
+              logger.error(`Erro ao verificar evento ${event.title}:`, error);
               return { [event.id]: false };
             }
           })
         );
-        
+
         const statusMap = confirmationStatuses.reduce((acc, status) => ({ ...acc, ...status }), {});
         setTeamConfirmationStatus(statusMap);
-        console.log('📋 Status de confirmação:', statusMap);
       }
     } catch (error) {
-      console.error('❌ Erro ao buscar dados do dashboard:', error);
+      logger.error('Erro ao buscar dados do dashboard:', error);
     } finally {
       setLoading(false);
-      console.log('🏁 Busca de dados concluída');
     }
   };
 
@@ -111,7 +100,7 @@ const Dashboard = () => {
         setFilteredEvents(validEvents);
       }
     } catch (error) {
-      console.error('Failed to filter events:', error);
+      logger.error('Erro ao filtrar eventos:', error);
     }
   };
 

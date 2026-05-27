@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+
 export interface Location {
   latitude: number;
   longitude: number;
@@ -211,7 +213,7 @@ class LocationService {
       // Tentar GPS primeiro (mais preciso)
       return await this.getCurrentUserLocation();
     } catch (gpsError) {
-      console.log('GPS não disponível, tentando IP:', gpsError);
+      logger.debug('GPS não disponível, tentando IP:', gpsError);
       try {
         // Fallback para IP
         return await this.getLocationByIP();

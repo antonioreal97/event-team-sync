@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -92,9 +93,8 @@ const Settings = () => {
     try {
       // Aqui você pode carregar as configurações do usuário da API
       // Por enquanto, usamos as configurações padrão
-      console.log('Carregando configurações do usuário...');
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      logger.error('Erro ao carregar configurações:', error);
       toast({
         title: 'Erro',
         description: 'Falha ao carregar configurações',
@@ -141,7 +141,7 @@ const Settings = () => {
       
       setLoginHistory(history);
     } catch (error) {
-      console.error('Erro ao carregar histórico de logins:', error);
+      logger.error('Erro ao carregar histórico de logins:, error);
       toast({
         title: 'Erro',
         description: 'Falha ao carregar histórico de logins',
@@ -195,10 +195,10 @@ const Settings = () => {
           location = `${geoData.city}, ${geoData.region}, ${geoData.country_name}`;
         }
       } catch (geoError) {
-        console.log('Não foi possível obter localização geográfica');
+        logger.debug('Não foi possível obter localização geográfica');
       }
     } catch (ipError) {
-      console.log('Não foi possível obter endereço IP');
+      logger.debug('Não foi possível obter endereço IP');
     }
     
     // Gerar ID único
@@ -249,7 +249,7 @@ const Settings = () => {
         description: 'Tentativa de login falhada simulada e adicionada ao histórico',
       });
     } catch (error) {
-      console.error('Erro ao simular login falhado:', error);
+      logger.error('Erro ao simular login falhado:, error);
     }
   };
 
@@ -285,7 +285,7 @@ const Settings = () => {
         description: 'Login suspeito simulado e adicionado ao histórico',
       });
     } catch (error) {
-      console.error('Erro ao simular login suspeito:', error);
+      logger.error('Erro ao simular login suspeito:, error);
     }
   };
 
@@ -302,14 +302,14 @@ const Settings = () => {
     setSaving(true);
     try {
       // Aqui você pode salvar as configurações na API
-      console.log('Salvando configurações:', settings);
+      logger.debug('Salvando configurações:', settings);
       
       toast({
         title: 'Sucesso',
         description: 'Configurações salvas com sucesso',
       });
     } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
+      logger.error('Erro ao salvar configurações:, error);
       toast({
         title: 'Erro',
         description: 'Falha ao salvar configurações',
@@ -342,7 +342,7 @@ const Settings = () => {
     setSaving(true);
     try {
       // Aqui você pode implementar a mudança de senha na API
-      console.log('Alterando senha...');
+      logger.debug('Alterando senha...');
       
       toast({
         title: 'Sucesso',
@@ -354,7 +354,7 @@ const Settings = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      console.error('Erro ao alterar senha:', error);
+      logger.error('Erro ao alterar senha:, error);
       toast({
         title: 'Erro',
         description: 'Falha ao alterar senha',

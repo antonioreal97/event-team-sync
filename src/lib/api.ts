@@ -1,6 +1,7 @@
 // API shim: routes legacy `apiFetch` calls to Lovable Cloud (Supabase).
 // This keeps existing service files working while we migrate them progressively.
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export function getApiBaseUrl(): string {
   return '';
@@ -338,7 +339,7 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
   }
 
   // Unknown endpoint — return safe empty payload to avoid UI crashes during migration.
-  console.warn('[api shim] Unhandled endpoint, returning empty:', method, path);
+  logger.warn('[api shim] Unhandled endpoint, returning empty:', method, path);
   return { users: [], events: [], assignments: [], allocations: [], stats: {}, items: [], categories: [], equipments: [] };
 }
 

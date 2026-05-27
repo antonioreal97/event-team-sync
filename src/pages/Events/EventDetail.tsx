@@ -444,14 +444,9 @@ const EventDetail = () => {
                   <div className="grid grid-cols-1 gap-4">
                                       {/* Lógica para mostrar preços baseada no tipo de usuário */}
                   {(() => {
-                    console.log('🔍 Debug - Iniciando lógica de preços');
-                    console.log('🔍 Debug - isGestor:', isGestor);
-                    console.log('🔍 Debug - user:', user);
-                    console.log('🔍 Debug - event.teamAllocations:', event.teamAllocations);
                     
                     // Se for gestor, mostrar as 3 categorias
                     if (isGestor) {
-                      console.log('🔍 Debug - Usuário é gestor, mostrando todas as categorias');
                       return (
                         <>
                           {/* Iniciante */}
@@ -498,10 +493,6 @@ const EventDetail = () => {
                     
                     // Se for freelancer, mostrar apenas a equipe do usuário
                     if (user && (user.role === 'freelancer' || user.role === 'lider_freelancer')) {
-                      console.log('🔍 Debug - ENTRANDO na lógica de freelancer');
-                      console.log('🔍 Debug - user.role:', user.role);
-                      console.log('🔍 Debug - user.teamType:', user.teamType);
-                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations?.length || 0);
                       
                       let userAllocation = null;
                       if (event.teamAllocations && event.teamAllocations.length > 0) {
@@ -510,23 +501,15 @@ const EventDetail = () => {
                         );
                       }
                       
-                      console.log('🔍 Debug - User Allocation encontrada:', userAllocation);
-                      console.log('🔍 Debug - Team Type do perfil:', (userAllocation as any)?.team_type);
-                      console.log('🔍 Debug - User ID:', user.id);
-                      console.log('🔍 Debug - Todas as alocações:', event.teamAllocations);
-                      console.log('🔍 Debug - User profile teamType:', user.teamType);
                       
                       // Primeiro tentar usar o team_type da alocação
                       let userTeamType = (userAllocation as any)?.team_type;
-                      console.log('🔍 Debug - userTeamType da alocação:', userTeamType);
                       
                       // Se não encontrar na alocação, usar o teamType do perfil do usuário
                       if (!userTeamType && user.teamType) {
                         userTeamType = user.teamType;
-                        console.log('🔍 Debug - Usando teamType do perfil do usuário:', userTeamType);
                       }
                       
-                      console.log('🔍 Debug - userTeamType final:', userTeamType);
                       
                       if (userTeamType) {
                         // Determinar a diária baseada no nível de experiência
@@ -553,9 +536,6 @@ const EventDetail = () => {
                         const totalPayment = dailyRate * (event.totalDays || 1);
                         const teamLabel = getTeamTypeLabel(userTeamType);
                         
-                        console.log('🔍 Debug - Team Type determinado:', userTeamType);
-                        console.log('🔍 Debug - Daily Rate usado:', dailyRate);
-                        console.log('🔍 Debug - RETORNANDO categoria específica do freelancer');
                         
                         return (
                           <div className={`bg-gradient-to-r ${gradientClass} p-4 rounded-lg border`}>
@@ -578,22 +558,11 @@ const EventDetail = () => {
                           </div>
                         );
                       } else {
-                        console.log('🔍 Debug - PROBLEMA: team_type não encontrado em nenhum lugar');
-                        console.log('🔍 Debug - userAllocation existe:', !!userAllocation);
-                        console.log('🔍 Debug - team_type da alocação:', !!(userAllocation as any)?.team_type);
-                        console.log('🔍 Debug - user.teamType existe:', !!user.teamType);
-                        console.log('🔍 Debug - VAI PARA FALLBACK (mostrar ambas equipes)');
                       }
                     } else {
-                      console.log('🔍 Debug - NÃO entrou na lógica de freelancer');
-                      console.log('🔍 Debug - user existe:', !!user);
-                      console.log('🔍 Debug - user.role:', user?.role);
-                      console.log('🔍 Debug - event.teamAllocations existe:', !!event.teamAllocations);
-                      console.log('🔍 Debug - event.teamAllocations.length:', event.teamAllocations?.length);
                     }
                     
                     // Fallback: mostrar todas as categorias se não conseguir determinar
-                    console.log('🔍 Debug - Usando fallback: mostrando todas as categorias');
                     return (
                       <>
                         {/* Iniciante */}
