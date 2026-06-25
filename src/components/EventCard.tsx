@@ -108,21 +108,30 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   };
 
   const getStatusBadge = () => {
-    switch(event.status) {
+    switch (event.status) {
       case 'planning':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Em Planejamento</Badge>;
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 hover:bg-blue-500/10">Em Planejamento</Badge>;
       case 'confirmed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Confirmado</Badge>;
+        return <Badge variant="outline" className="bg-primary/15 text-primary border-primary/40 hover:bg-primary/15">Confirmado</Badge>;
       case 'in_progress':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Em Progresso</Badge>;
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/10">Em Progresso</Badge>;
       case 'completed':
-        return <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">Concluído</Badge>;
+        return <Badge variant="outline" className="bg-muted text-muted-foreground border-border hover:bg-muted">Concluído</Badge>;
       case 'cancelled':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">Cancelado</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-300 border-red-500/30 hover:bg-red-500/10">Cancelado</Badge>;
       default:
         return null;
     }
   };
+
+  const accentClass =
+    event.status === 'in_progress'
+      ? 'border-l-4 border-l-primary shadow-[0_0_20px_-8px_rgba(17,207,129,0.6)]'
+      : event.status === 'confirmed'
+        ? 'border-l-4 border-l-primary/60'
+        : event.status === 'cancelled'
+          ? 'border-l-4 border-l-red-500/50'
+          : 'border-l-4 border-l-border';
 
   const isUpcoming = () => {
     try {
