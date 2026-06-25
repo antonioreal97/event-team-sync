@@ -249,7 +249,7 @@ const Settings = () => {
         description: 'Tentativa de login falhada simulada e adicionada ao histórico',
       });
     } catch (error) {
-      logger.error('Erro ao simular login falhado:, error);
+      logger.error('Erro ao simular login falhado:', error);
     }
   };
 
@@ -285,7 +285,7 @@ const Settings = () => {
         description: 'Login suspeito simulado e adicionado ao histórico',
       });
     } catch (error) {
-      logger.error('Erro ao simular login suspeito:, error);
+      logger.error('Erro ao simular login suspeito:', error);
     }
   };
 
@@ -309,7 +309,7 @@ const Settings = () => {
         description: 'Configurações salvas com sucesso',
       });
     } catch (error) {
-      logger.error('Erro ao salvar configurações:, error);
+      logger.error('Erro ao salvar configurações:', error);
       toast({
         title: 'Erro',
         description: 'Falha ao salvar configurações',
@@ -354,7 +354,7 @@ const Settings = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      logger.error('Erro ao alterar senha:, error);
+      logger.error('Erro ao alterar senha:', error);
       toast({
         title: 'Erro',
         description: 'Falha ao alterar senha',
