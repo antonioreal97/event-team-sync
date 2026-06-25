@@ -292,31 +292,52 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
 
       {/* Main content */}
-      <div className="lg:ml-64 min-h-screen">
+      <div className="lg:ml-64 min-h-screen pb-[72px] lg:pb-0">
         {/* Top bar */}
-        <header className="bg-card shadow-lg border-b border-border px-6 py-4 sticky top-0 z-30 backdrop-blur-sm">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-foreground hover:bg-accent hover:text-accent-foreground"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center space-x-4">
+        <header className="bg-card/95 backdrop-blur-md shadow-lg border-b border-border px-4 lg:px-6 py-3 lg:py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between gap-3">
+            {/* Mobile: compact brand */}
+            <div className="flex items-center gap-2 lg:hidden min-w-0">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <img src="/logo-s4u.png" alt="Equipe S4U" className="h-7 w-7 object-contain" />
+              </div>
+              <span className="text-sm font-bold uppercase tracking-tight text-primary truncate">
+                Equipe S4U
+              </span>
+            </div>
+
+            {/* Desktop greeting */}
+            <div className="hidden lg:flex items-center space-x-4">
               <div className="text-sm text-foreground/80">
                 Bem-vindo, <span className="font-medium text-primary">{user.name}</span>
               </div>
+            </div>
+
+            {/* Right side — avatar on mobile, logout already in sidebar */}
+            <div className="flex items-center gap-3 lg:hidden">
+              <button
+                onClick={() => navigate('/profile')}
+                aria-label="Abrir perfil"
+                className="w-9 h-9 rounded-full border border-primary/40 overflow-hidden bg-sidebar-accent flex items-center justify-center text-xs font-bold text-primary"
+              >
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{user.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span>
+                )}
+              </button>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="p-6 bg-background">
+        <main className="p-4 lg:p-6 bg-background">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   );
 };
