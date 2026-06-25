@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface EventCardProps {
   event: Event;
@@ -108,21 +109,30 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   };
 
   const getStatusBadge = () => {
-    switch(event.status) {
+    switch (event.status) {
       case 'planning':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Em Planejamento</Badge>;
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 hover:bg-blue-500/10">Em Planejamento</Badge>;
       case 'confirmed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Confirmado</Badge>;
+        return <Badge variant="outline" className="bg-primary/15 text-primary border-primary/40 hover:bg-primary/15">Confirmado</Badge>;
       case 'in_progress':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Em Progresso</Badge>;
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/10">Em Progresso</Badge>;
       case 'completed':
-        return <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">Concluído</Badge>;
+        return <Badge variant="outline" className="bg-muted text-muted-foreground border-border hover:bg-muted">Concluído</Badge>;
       case 'cancelled':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">Cancelado</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-300 border-red-500/30 hover:bg-red-500/10">Cancelado</Badge>;
       default:
         return null;
     }
   };
+
+  const accentClass =
+    event.status === 'in_progress'
+      ? 'border-l-4 border-l-primary shadow-[0_0_20px_-8px_rgba(17,207,129,0.6)]'
+      : event.status === 'confirmed'
+        ? 'border-l-4 border-l-primary/60'
+        : event.status === 'cancelled'
+          ? 'border-l-4 border-l-red-500/50'
+          : 'border-l-4 border-l-border';
 
   const isUpcoming = () => {
     try {
@@ -175,24 +185,24 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   };
 
   return (
-    <Card className="card-hover">
+    <Card className={cn('card-hover overflow-hidden', accentClass)}>
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg">{event.title}</CardTitle>
-          {getStatusBadge()}
+        <div className="flex justify-between items-start gap-2">
+          <CardTitle className="text-base sm:text-lg leading-tight">{event.title}</CardTitle>
+          <div className="flex-shrink-0">{getStatusBadge()}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-500">Local</p>
-            <p className="font-medium">{event.location}</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Local</p>
+            <p className="text-sm font-medium truncate">{event.location}</p>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Data de Início</p>
-              <p className="font-medium">{formatDate(event.startDate)}</p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Início</p>
+              <p className="text-sm font-medium truncate">{formatDate(event.startDate)}</p>
               {event.dailySchedule && event.dailySchedule.length > 0 && (
                 <p className="text-sm text-gray-500">
                   {event.dailySchedule[0].startTime} - {event.dailySchedule[0].endTime}
