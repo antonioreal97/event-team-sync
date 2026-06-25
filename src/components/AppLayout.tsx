@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, Home, Calendar, Users, Bell, Settings, LogOut, User, DollarSign, Award, Package } from 'lucide-react';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface SidebarMenuItemProps {
   children: React.ReactNode;
