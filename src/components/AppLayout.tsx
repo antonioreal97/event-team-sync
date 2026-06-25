@@ -313,8 +313,15 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </div>
             </div>
 
-            {/* Right side — avatar on mobile, logout already in sidebar */}
-            <div className="flex items-center gap-3 lg:hidden">
+            {/* Right side — menu + avatar on mobile */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Abrir menu"
+                className="w-9 h-9 rounded-lg border border-border bg-sidebar-accent/40 flex items-center justify-center text-sidebar-foreground hover:text-primary transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
               <button
                 onClick={() => navigate('/profile')}
                 aria-label="Abrir perfil"
