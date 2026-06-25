@@ -810,24 +810,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_public_profile: {
-        Args: { _user_id: string }
-        Returns: {
-          audio_visual_roles: string[]
-          avatar: string
-          average_rating: number
-          bio: string
-          created_at: string
-          experience_level: Database["public"]["Enums"]["experience_level"]
-          id: string
-          is_active: boolean
-          languages: string[]
-          name: string
-          team_type: Database["public"]["Enums"]["team_type"]
-          total_events_attended: number
-          user_id: string
-        }[]
-      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -838,24 +820,6 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
-      }
-      list_public_profiles: {
-        Args: never
-        Returns: {
-          audio_visual_roles: string[]
-          avatar: string
-          average_rating: number
-          bio: string
-          created_at: string
-          experience_level: Database["public"]["Enums"]["experience_level"]
-          id: string
-          is_active: boolean
-          languages: string[]
-          name: string
-          team_type: Database["public"]["Enums"]["team_type"]
-          total_events_attended: number
-          user_id: string
-        }[]
       }
     }
     Enums: {
