@@ -184,24 +184,24 @@ const EventCard: React.FC<EventCardProps> = ({ event, onEventDeleted }) => {
   };
 
   return (
-    <Card className="card-hover">
+    <Card className={cn('card-hover overflow-hidden', accentClass)}>
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg">{event.title}</CardTitle>
-          {getStatusBadge()}
+        <div className="flex justify-between items-start gap-2">
+          <CardTitle className="text-base sm:text-lg leading-tight">{event.title}</CardTitle>
+          <div className="flex-shrink-0">{getStatusBadge()}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-500">Local</p>
-            <p className="font-medium">{event.location}</p>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Local</p>
+            <p className="text-sm font-medium truncate">{event.location}</p>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Data de Início</p>
-              <p className="font-medium">{formatDate(event.startDate)}</p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Início</p>
+              <p className="text-sm font-medium truncate">{formatDate(event.startDate)}</p>
               {event.dailySchedule && event.dailySchedule.length > 0 && (
                 <p className="text-sm text-gray-500">
                   {event.dailySchedule[0].startTime} - {event.dailySchedule[0].endTime}
