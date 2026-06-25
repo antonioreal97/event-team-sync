@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Calendar, Users, Bell, Settings, LogOut, User, DollarSign, Award, CheckCircle, Package } from 'lucide-react';
+import { Menu, X, Home, Calendar, Users, Bell, Settings, LogOut, User, DollarSign, Award, Package } from 'lucide-react';
 
 interface SidebarMenuItemProps {
   children: React.ReactNode;
@@ -46,6 +46,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActiveRoute = (path: string) => location.pathname === path;
+  const isActiveRouteGroup = (paths: string[]) => paths.includes(location.pathname);
 
   const handleLogout = () => {
     logout();
@@ -177,11 +178,11 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <SidebarMenuItem>
                   <SidebarMenuButton 
                     onClick={() => navigate('/team-scheduling')}
-                    isActive={isActiveRoute('/team-scheduling')}
+                    isActive={isActiveRouteGroup(['/team-scheduling', '/team-escalation', '/pending-allocations'])}
                   >
                     <div className="flex items-center">
                       <Users className="w-5 h-5 mr-3" />
-                      <span className="font-medium">Gestão de Escala</span>
+                      <span className="font-medium">Escala</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -193,28 +194,6 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <div className="flex items-center">
                       <DollarSign className="w-5 h-5 mr-3" />
                       <span className="font-medium">Gestão de Pagamentos</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate('/pending-allocations')}
-                    isActive={isActiveRoute('/pending-allocations')}
-                  >
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 mr-3" />
-                      <span className="font-medium">Pendências de escalação</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton 
-                    onClick={() => navigate('/team-escalation')}
-                    isActive={isActiveRoute('/team-escalation')}
-                  >
-                    <div className="flex items-center">
-                      <Users className="w-5 h-5 mr-3" />
-                      <span className="font-medium">Escalação de Equipes</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

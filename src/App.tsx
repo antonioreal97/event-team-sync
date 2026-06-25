@@ -17,10 +17,9 @@ import NotificationsList from "./pages/Notifications/NotificationsList";
 import TeamScheduling from "./pages/TeamManagement/TeamScheduling";
 import PaymentManagement from "./pages/TeamManagement/PaymentManagement";
 import TeamManagement from "./pages/TeamManagement/TeamManagement";
-import EventInterestManagement from "./pages/TeamManagement/EventInterestManagement";
-import { TeamEscalation } from "./pages/TeamManagement/TeamEscalation";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
 import EquipmentManagement from "./pages/Equipment/EquipmentManagement";
 
@@ -59,6 +58,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
+      <Route path="/invite/accept" element={<InviteAccept />} />
       
       {/* Protected routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -71,9 +71,9 @@ const AppRoutes = () => {
       <Route path="/team-management" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
       <Route path="/team-scheduling" element={<ProtectedRoute><TeamScheduling /></ProtectedRoute>} />
       <Route path="/payment-management" element={<ProtectedRoute><PaymentManagement /></ProtectedRoute>} />
-      <Route path="/pending-allocations" element={<ProtectedRoute><EventInterestManagement /></ProtectedRoute>} />
+      <Route path="/pending-allocations" element={<Navigate to="/team-scheduling" replace />} />
       <Route path="/event-interest-management" element={<Navigate to="/pending-allocations" replace />} />
-      <Route path="/team-escalation" element={<ProtectedRoute><TeamEscalation /></ProtectedRoute>} />
+      <Route path="/team-escalation" element={<Navigate to="/team-scheduling" replace />} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       {/* Equipment management */}

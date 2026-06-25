@@ -113,6 +113,84 @@ function eventToDbRow(payload: any): Record<string, unknown> {
   return out;
 }
 
+function toNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function getDailyRateForTeam(event: Record<string, unknown>, profile: Record<string, unknown>): number {
+  const teamType = String(profile.team_type || 'sem_equipe');
+  if (teamType === 'avancado') {
+    return toNumber(event.daily_rate_avancado ?? event.daily_rate_team_a, 250);
+  }
+  if (teamType === 'intermediario') {
+    return toNumber(event.daily_rate_intermediario ?? event.daily_rate_team_b, 200);
+  }
+  return toNumber(event.daily_rate_iniciante ?? event.daily_rate_team_b, 200);
+}
+
+function dateOnly(value: unknown): string {
+  return String(value || '').split('T')[0];
+}
+
+function eachEventDate(start: unknown, end: unknown): string[] {
+  const startDate = new Date(String(start));
+  const endDate = new Date(String(end || start));
+  if (Number.isNaN(startDate.getTime())) return [];
+  if (Number.isNaN(endDate.getTime())) return [dateOnly(start)];
+
+  const dates: string[] = [];
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  const last = new Date(endDate);
+  last.setHours(0, 0, 0, 0);
+
+  while (cursor <= last) {
+    dates.push(cursor.toISOString().split('T')[0]);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+async function fetchProfilesByUserId(userIds: string[]): Promise<Map<string, Record<string, unknown>>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await (supabase as any)
+    .from('profiles')
+    .select('*')
+    .in('user_id', Array.from(new Set(userIds)));
+  if (error) throw error;
+  return new Map((data || []).map((profile: any) => [String(profile.user_id), profile]));
+}
+
+async function fetchEventsById(eventIds: string[]): Promise<Map<string, Record<string, unknown>>> {
+  if (eventIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .in('id', Array.from(new Set(eventIds)));
+  if (error) throw error;
+  return new Map(((data || []) as Record<string, unknown>[]).map((event) => [String(event.id), event]));
+}
+
+async function createAllocationNotification(params: {
+  userId: string;
+  eventId: string;
+  title: string;
+  message: string;
+  actionRequired?: boolean;
+}): Promise<void> {
+  const { error } = await (supabase as any).from('notifications').insert({
+    user_id: params.userId,
+    related_event_id: params.eventId,
+    title: params.title,
+    message: params.message,
+    type: 'allocation',
+    priority: params.actionRequired ? 'high' : 'medium',
+    action_required: params.actionRequired ?? false,
+  });
+  if (error) logger.warn('[api shim] notification insert failed:', error.message);
+}
+
 // ============================================================================
 // Router
 // ============================================================================
@@ -224,6 +302,36 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
 
   // ---- /teams ----
   if (segs[0] === 'teams') {
+    // GET /teams/pending-allocations
+    if (method === 'GET' && segs[1] === 'pending-allocations') {
+      const { data: allocations, error } = await supabase
+        .from('team_allocations')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+
+      const rows = (allocations || []) as Record<string, unknown>[];
+      const eventsById = await fetchEventsById(rows.map((row) => String(row.event_id)));
+      const profilesByUserId = await fetchProfilesByUserId(rows.map((row) => String(row.user_id)));
+
+      return {
+        allocations: rows
+          .map((row) => {
+            const event = eventsById.get(String(row.event_id));
+            const profile = profilesByUserId.get(String(row.user_id));
+            return {
+              ...row,
+              event_title: event?.title || 'Evento',
+              event_start_date: event?.start_date || null,
+              user_name: profile?.name || 'Profissional',
+              user_email: profile?.email || '',
+              team_type: profile?.team_type || 'sem_equipe',
+            };
+          })
+          .sort((a, b) => String(a.event_start_date || '').localeCompare(String(b.event_start_date || ''))),
+      };
+    }
     // GET /teams/assignments → lista profiles agrupados
     if (method === 'GET' && segs[1] === 'assignments') {
       const profiles = await fetchProfilesWithRoles();
@@ -277,7 +385,19 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
       const { data, error } = await supabase
         .from('team_allocations').select('*').eq('event_id', segs[2]);
       if (error) throw error;
-      return { allocations: data || [] };
+      const rows = ((data || []) as Record<string, unknown>[]);
+      const profilesByUserId = await fetchProfilesByUserId(rows.map((row) => String(row.user_id)));
+      return {
+        allocations: rows.map((row) => {
+          const profile = profilesByUserId.get(String(row.user_id));
+          return {
+            ...row,
+            team_type: profile?.team_type || 'sem_equipe',
+            user_name: profile?.name || '',
+            user_email: profile?.email || '',
+          };
+        }),
+      };
     }
     // GET /teams/event/:id/confirmation-status
     if (method === 'GET' && segs[1] === 'event' && segs[3] === 'confirmation-status') {
@@ -290,17 +410,118 @@ async function route(path: string, init: ApiFetchInit): Promise<unknown> {
     }
     // POST /teams/allocate
     if (method === 'POST' && segs[1] === 'allocate') {
+      const [{ data: event, error: eventError }, { data: profile, error: profileError }] = await Promise.all([
+        supabase.from('events').select('*').eq('id', body.eventId).maybeSingle(),
+        (supabase as any).from('profiles').select('*').eq('user_id', body.userId).maybeSingle(),
+      ]);
+      if (eventError) throw eventError;
+      if (profileError) throw profileError;
+      if (!event) throw new Error('Evento não encontrado');
+      if (!profile) throw new Error('Profissional não encontrado');
+
+      const existing = await supabase
+        .from('team_allocations')
+        .select('id')
+        .eq('event_id', body.eventId)
+        .eq('user_id', body.userId)
+        .maybeSingle();
+      if (existing.error) throw existing.error;
+      if (existing.data) throw new Error('Profissional já está escalado neste evento');
+
+      const dailyRate = getDailyRateForTeam(event as Record<string, unknown>, profile);
+      const totalDays = toNumber(body.totalDays, toNumber((event as any).total_days, 1)) || 1;
+      const eventStartDate = new Date(String((event as any).start_date));
+      const deadline = Number.isNaN(eventStartDate.getTime()) ? null : new Date(eventStartDate);
+      if (deadline) deadline.setDate(deadline.getDate() - 5);
+
       const row: Record<string, unknown> = {
         event_id: body.eventId,
         user_id: body.userId,
         assigned_role: body.assignedRole,
-        total_days: body.totalDays || 1,
+        daily_rate: dailyRate,
+        total_days: totalDays,
+        total_payment: dailyRate * totalDays,
+        cancellation_deadline: deadline?.toISOString() || null,
+        confirmation_deadline: deadline?.toISOString() || null,
+        status: 'pending',
         notes: body.notes,
       };
       const { data, error } = await (supabase as any)
         .from('team_allocations').insert(row).select().maybeSingle();
       if (error) throw error;
+
+      const attendanceRows = eachEventDate((event as any).start_date, (event as any).end_date).map((date) => ({
+        allocation_id: data.id,
+        date,
+        daily_payment: dailyRate,
+      }));
+      if (attendanceRows.length > 0) {
+        const { error: attendanceError } = await (supabase as any)
+          .from('attendance_records')
+          .insert(attendanceRows);
+        if (attendanceError) logger.warn('[api shim] attendance insert failed:', attendanceError.message);
+      }
+
+      await createAllocationNotification({
+        userId: String(body.userId),
+        eventId: String(body.eventId),
+        title: 'Confirme sua disponibilidade',
+        message: `Você foi escalado para "${(event as any).title || 'Evento'}" como ${body.assignedRole}. Confirme sua disponibilidade.`,
+        actionRequired: true,
+      });
+
       return { allocation: data };
+    }
+    // POST /teams/allocations/:id/confirm-availability
+    if (method === 'POST' && segs[1] === 'allocations' && segs[3] === 'confirm-availability') {
+      const { error } = await supabase
+        .from('team_allocations')
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('id', segs[2])
+        .eq('status', 'pending');
+      if (error) throw error;
+      return {};
+    }
+    // POST /teams/allocations/:id/decline-availability
+    if (method === 'POST' && segs[1] === 'allocations' && segs[3] === 'decline-availability') {
+      const { data: allocation, error: allocationError } = await supabase
+        .from('team_allocations')
+        .select('*')
+        .eq('id', segs[2])
+        .maybeSingle();
+      if (allocationError) throw allocationError;
+      if (!allocation) throw new Error('Alocação não encontrada');
+
+      const { error } = await supabase
+        .from('team_allocations')
+        .update({
+          status: 'rejected',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: 'Disponibilidade recusada pelo profissional',
+        })
+        .eq('id', segs[2])
+        .eq('status', 'pending');
+      if (error) throw error;
+
+      const eventsById = await fetchEventsById([String((allocation as any).event_id)]);
+      const event = eventsById.get(String((allocation as any).event_id));
+      const profilesByUserId = await fetchProfilesByUserId([String((allocation as any).user_id)]);
+      const profile = profilesByUserId.get(String((allocation as any).user_id));
+
+      if (event?.created_by) {
+        await createAllocationNotification({
+          userId: String(event.created_by),
+          eventId: String(event.id),
+          title: 'Escalação recusada',
+          message: `${profile?.name || 'Um profissional'} recusou a escala de "${event.title || 'Evento'}".`,
+          actionRequired: true,
+        });
+      }
+
+      return {};
     }
     // DELETE /teams/allocate/:id
     if (method === 'DELETE' && segs[1] === 'allocate' && segs[2]) {

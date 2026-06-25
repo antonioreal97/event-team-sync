@@ -141,7 +141,7 @@ const Settings = () => {
       
       setLoginHistory(history);
     } catch (error) {
-      logger.error('Erro ao carregar histórico de logins:, error);
+      logger.error('Erro ao carregar histórico de logins:', error);
       toast({
         title: 'Erro',
         description: 'Falha ao carregar histórico de logins',
