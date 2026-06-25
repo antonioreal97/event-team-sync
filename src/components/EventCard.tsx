@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface EventCardProps {
   event: Event;
